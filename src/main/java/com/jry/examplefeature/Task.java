@@ -7,20 +7,23 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "task")
 public class Task {
-
     public static final int DESCRIPTION_MAX_LENGTH = 300;
-
+    public static final int TITLE_MAX_LENGTH = 100;
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
+
+
     @Column(name = "task_id")
     private Long id;
+
+    @Column(name = "title", nullable = false, length = TITLE_MAX_LENGTH)
+    private String title = "";
 
     @Column(name = "description", nullable = false, length = DESCRIPTION_MAX_LENGTH)
     private String description = "";
 
-    @Column(name = "creation_date", nullable = false)
+    @Column(name = "creation_date", nullable = false)//nullable is "required fields"
     private Instant creationDate;
 
     @Column(name = "due_date")
@@ -30,13 +33,31 @@ public class Task {
     protected Task() { // To keep Hibernate happy
     }
 
-    public Task(String description, Instant creationDate) {
+    public Task(String title, String description, Instant creationDate) {
         setDescription(description);
         this.creationDate = creationDate;
     }
 
+    public Task(String title, String description, Instant creationDate, LocalDate dueDate) {
+        setTitle(title);
+        setDescription(description);
+        this.creationDate = creationDate;
+        this.dueDate = dueDate;
+    }
+
     public @Nullable Long getId() {
         return id;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        if (title.length() > TITLE_MAX_LENGTH) {
+            throw new IllegalArgumentException("Description length exceeds " + DESCRIPTION_MAX_LENGTH);
+        }
+        this.title = title;
     }
 
     public String getDescription() {
