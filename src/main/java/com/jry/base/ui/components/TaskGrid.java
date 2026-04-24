@@ -1,8 +1,8 @@
 package com.jry.base.ui.components;
-import com.jry.backend.Task; // Update to your actual Task location
+
+import com.jry.backend.Task;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.data.provider.ListDataProvider;
-import org.apache.commons.lang3.StringUtils; // Assuming you are using Apache Commons, or keep your custom utils
 
 import java.util.List;
 
@@ -10,23 +10,36 @@ public class TaskGrid extends Grid<Task> {
     private final ListDataProvider<Task> dataProvider;
 
     public TaskGrid(List<Task> allTasks) {
-        // 1. Initialize the data provider with Tasks
         dataProvider = new ListDataProvider<>(allTasks);
         setDataProvider(dataProvider);
 
-        // 2. Set up columns specific to a Task
-        addColumn(Task::getTitle).setHeader("Task Name").setSortable(true);
+        // Map columns to your Task object properties
+        addColumn(Task::getTitle).setHeader("Title").setSortable(true);
         addColumn(Task::getDescription).setHeader("Description");
-        addColumn(Task::getDueDate).setHeader("Due Date").setSortable(true);
+
+        // Handle the due date (checking if it is null so the app doesn't crash)
+        addColumn(task -> task.getDueDate() != null ? task.getDueDate().toString() : "No due date")
+                .setHeader("Due Date")
+                .setSortable(true);
+
+        // Convert the boolean into a readable string
+        addColumn(task -> task.isCompleted() ? "Done" : "Pending")
+                .setHeader("Status")
+                .setSortable(true);
     }
 
+    // Standard Java filter that searches both Title and Description
     public void filter(String searchTerm) {
-        // 3. Update the filter to search through relevant Task fields
-        dataProvider.setFilter(task ->
-                searchTerm == null ||
-                        searchTerm.isEmpty() ||
-                        StringUtils.containsIgnoreCase(task.getTitle(), searchTerm) ||
-                        StringUtils.containsIgnoreCase(task.getDescription(), searchTerm)
-        );
+        dataProvider.setFilter(task -> {
+            if (searchTerm == null || searchTerm.isEmpty()) {
+                return true;
+            }
+            String lowerTerm = searchTerm.toLowerCase();
+
+            boolean matchesTitle = task.getTitle() != null && task.getTitle().toLowerCase().contains(lowerTerm);
+            boolean matchesDesc = task.getDescription() != null && task.getDescription().toLowerCase().contains(lowerTerm);
+
+            return matchesTitle || matchesDesc;
+        });
     }
 }

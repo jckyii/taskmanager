@@ -42,7 +42,7 @@ public class Task {
         isCompleted = completed;
     }
 
-    protected Task() { // To keep Hibernate happy
+    public Task() { // To keep Hibernate happy
     }
 
     public Task(String title, Instant creationDate) {
