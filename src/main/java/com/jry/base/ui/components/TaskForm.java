@@ -11,8 +11,8 @@ import com.vaadin.flow.data.binder.Binder;
 
 import java.util.function.Consumer;
 
-public class BookForm extends VerticalLayout {
-    private Task book;
+public class TaskForm extends VerticalLayout {
+    private Task task;
     private Binder<Task> binder;
 
     private final FormLayout formLayout = new FormLayout();
@@ -22,27 +22,22 @@ public class BookForm extends VerticalLayout {
     private Consumer<Task> onSave;
     private Runnable onCancel;
 
-    public BookForm() {
+    public TaskForm(Task task, Consumer<Task> onSave) {
         binder = new Binder<>(Task.class);
 
         TextField title = new TextField("Title");
-        TextField author = new TextField("Author");
-        TextField isbn = new TextField("ISBN");
+        TextField description = new TextField("Description");
 
         binder.forField(title)
                 .asRequired()
                 .bind(Task::getTitle, Task::setTitle);
-        binder.forField(author)
+        binder.forField(description)
                 .asRequired()
-                .bind(Task::getAuthor, Task::setAuthor);
-        binder.forField(isbn)
-                .asRequired()
-                .withValidator(value -> value.length() == 10, "ISBN must be 10 digits")
-                .bind(Task::getIsbn, Task::setIsbn);
+                .bind(Task::getDescription, Task::setDescription);
 
         formLayout.setResponsiveSteps(new FormLayout.ResponsiveStep("0",1));
 
-        formLayout.add(title, author, isbn);
+        formLayout.add(title, description);
 
         configureButtons();
 
@@ -61,24 +56,24 @@ public class BookForm extends VerticalLayout {
         });
 
         saveBtn.addClickListener(e -> {
-            if (binder.writeBeanIfValid(book)) {
-                if(onSave != null) onSave.accept(book); // pass book to save listener
+            if (binder.writeBeanIfValid(task)) {
+                if(onSave != null) onSave.accept(task); // pass book to save listener
             } else {
                 binder.validate();
             }
         });
     }
 
-    public void setBook(Book book) {
-        this.book = book;
-        binder.readBean(book);
+    public void setTask(Task task) {
+        this.task = task;
+        binder.readBean(task);
     }
 
     public void resetForm() {
-        binder.readBean(book);
+        binder.readBean(task);
     }
 
-    public void addSaveListener(Consumer<Book> onSave) {
+    public void addSaveListener(Consumer<Task> onSave) {
         this.onSave = onSave;
     }
 
