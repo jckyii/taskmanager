@@ -1,4 +1,4 @@
-package com.jry.base.ui;
+package com.jry.base.ui.layouts;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.Unit;

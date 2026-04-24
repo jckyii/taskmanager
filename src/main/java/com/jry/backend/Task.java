@@ -1,4 +1,4 @@
-package com.jry.examplefeature;
+package com.jry.backend;
 
 import jakarta.persistence.*;
 import org.jspecify.annotations.Nullable;
@@ -30,10 +30,27 @@ public class Task {
     @Nullable
     private LocalDate dueDate;
 
+    @Column(name = "is_completed", nullable = false)
+    private boolean isCompleted = false;
+
+    // Add the getter and setter
+    public boolean isCompleted() {
+        return isCompleted;
+    }
+
+    public void setCompleted(boolean completed) {
+        isCompleted = completed;
+    }
+
     protected Task() { // To keep Hibernate happy
     }
 
+    public Task(String title, Instant creationDate) {
+        setTitle(title);
+        this.creationDate = creationDate;
+    }
     public Task(String title, String description, Instant creationDate) {
+        setTitle(title);
         setDescription(description);
         this.creationDate = creationDate;
     }
@@ -55,7 +72,7 @@ public class Task {
 
     public void setTitle(String title) {
         if (title.length() > TITLE_MAX_LENGTH) {
-            throw new IllegalArgumentException("Description length exceeds " + DESCRIPTION_MAX_LENGTH);
+            throw new IllegalArgumentException("Title length exceeds " + DESCRIPTION_MAX_LENGTH);
         }
         this.title = title;
     }
