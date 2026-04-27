@@ -91,6 +91,13 @@ public class Task {
     public Instant getCreationDate() {
         return creationDate;
     }
+    
+    @PrePersist
+    protected void onCreate() {
+        if (this.creationDate == null) {
+            this.creationDate = Instant.now();
+        }
+    }
 
     public @Nullable LocalDate getDueDate() {
         return dueDate;

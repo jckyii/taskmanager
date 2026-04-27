@@ -64,11 +64,28 @@ public class TaskForm extends VerticalLayout {
         });
     }
 
+
+
+
+
     public void setTask(Task task) {
         this.task = task;
         binder.readBean(task);
     }
 
+    public void resetForm() {
+        binder.readBean(task);
+    }
+
     public void addSaveListener(Consumer<Task> onSave) { this.onSave = onSave; }
     public void addCancelListener(Runnable onCancel) { this.onCancel = onCancel; }
+
+
+    public void setEditable(boolean isEditing) {
+        binder.getFields().forEach(field -> field.setReadOnly(!isEditing));
+        saveBtn.setEnabled(isEditing);
+        saveBtn.setVisible(isEditing);
+        cancelBtn.setEnabled(isEditing);
+        cancelBtn.setVisible(isEditing);
+    }
 }
