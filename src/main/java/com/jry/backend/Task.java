@@ -81,7 +81,7 @@ public class Task {
         return description;
     }
 
-    public void setDescription(String description) {
+    public void setDescription(String description) {//add a character limit tracker
         if (description.length() > DESCRIPTION_MAX_LENGTH) {
             throw new IllegalArgumentException("Description length exceeds " + DESCRIPTION_MAX_LENGTH);
         }
