@@ -4,6 +4,7 @@ import com.jry.backend.Task;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.datepicker.DatePicker;
+import com.vaadin.flow.component.datetimepicker.DateTimePicker;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -11,6 +12,9 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 
+import java.time.Duration;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.function.Consumer;
 
 public class TaskForm extends VerticalLayout {
@@ -27,7 +31,10 @@ public class TaskForm extends VerticalLayout {
     public TaskForm() {
         TextField title = new TextField("Title");
         TextArea description = new TextArea("Description");
-        DatePicker dueDate = new DatePicker("Due Date");
+        DateTimePicker dueDate = new DateTimePicker("Due Date");
+        dueDate.setLocale(Locale.US);
+        dueDate.setStep(Duration.ofMinutes(30));
+
 
         binder.forField(title)
                 .asRequired("Title is required")

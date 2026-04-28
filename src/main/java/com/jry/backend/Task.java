@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 public class Task {
@@ -28,7 +28,7 @@ public class Task {
 
     @Column(name = "due_date")
     @Nullable
-    private LocalDate dueDate;
+    private LocalDateTime dueDate;
 
     @Column(name = "is_completed", nullable = false)
     private boolean isCompleted = false;
@@ -55,7 +55,7 @@ public class Task {
         this.creationDate = creationDate;
     }
 
-    public Task(String title, String description, Instant creationDate, LocalDate dueDate) {
+    public Task(String title, String description, Instant creationDate, LocalDateTime dueDate) {
         setTitle(title);
         setDescription(description);
         this.creationDate = creationDate;
@@ -99,11 +99,11 @@ public class Task {
         }
     }
 
-    public @Nullable LocalDate getDueDate() {
+    public @Nullable LocalDateTime getDueDate() {
         return dueDate;
     }
 
-    public void setDueDate(@Nullable LocalDate dueDate) {
+    public void setDueDate(@Nullable LocalDateTime dueDate) {
         this.dueDate = dueDate;
     }
 
