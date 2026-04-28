@@ -33,6 +33,9 @@ public class Task {
     @Column(name = "is_completed", nullable = false)
     private boolean isCompleted = false;
 
+    @Column(name = "subject")
+    private String subject = "";
+
     // Add the getter and setter
     public boolean isCompleted() {
         return isCompleted;
@@ -106,6 +109,16 @@ public class Task {
     public void setDueDate(@Nullable LocalDateTime dueDate) {
         this.dueDate = dueDate;
     }
+
+    public String getSubject() {
+        return subject;
+    }
+
+    public void setSubject(String subject) {
+        this.subject = subject;
+    }
+
+
 
     @Override
     public boolean equals(Object obj) {
