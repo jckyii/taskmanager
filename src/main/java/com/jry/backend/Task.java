@@ -33,6 +33,9 @@ public class Task {
     @Column(name = "is_completed", nullable = false)
     private boolean isCompleted = false;
 
+    @Column(name = "subject")
+    private String subject = "";
+
     // Add the getter and setter
     public boolean isCompleted() {
         return isCompleted;
@@ -81,7 +84,7 @@ public class Task {
         return description;
     }
 
-    public void setDescription(String description) {
+    public void setDescription(String description) {//add a character limit tracker
         if (description.length() > DESCRIPTION_MAX_LENGTH) {
             throw new IllegalArgumentException("Description length exceeds " + DESCRIPTION_MAX_LENGTH);
         }
@@ -106,6 +109,16 @@ public class Task {
     public void setDueDate(@Nullable LocalDateTime dueDate) {
         this.dueDate = dueDate;
     }
+
+    public String getSubject() {
+        return subject;
+    }
+
+    public void setSubject(String subject) {
+        this.subject = subject;
+    }
+
+
 
     @Override
     public boolean equals(Object obj) {
