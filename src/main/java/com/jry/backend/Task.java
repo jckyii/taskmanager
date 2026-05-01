@@ -39,6 +39,11 @@ public class Task {
     @Column(name = "subject_color")
     private String subjectColor = "#e5e7eb"; // Default light gray
 
+    @Column(name = "category")
+    private String category = "Personal"; // Default category
+
+
+
     // Add the getter and setter
     public boolean isCompleted() {
         return isCompleted;
@@ -129,6 +134,14 @@ public class Task {
         this.subjectColor = subjectColor;
     }
 
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
 
 
     @Override
@@ -142,6 +155,20 @@ public class Task {
 
         Task other = (Task) obj;
         return getId() != null && getId().equals(other.getId());
+    }
+
+    // Helper method to check if the task is due within 48 hours
+    public boolean isUrgent() {
+        // If it's already done, or has no due date, it's not urgent
+        if (isCompleted || dueDate == null) {
+            return false;
+        }
+
+        // Calculate the exact time 2 days from right now
+        LocalDateTime twoDaysFromNow = LocalDateTime.now().plusDays(2);
+
+        // Return true if the due date is BEFORE the 2-day mark
+        return dueDate.isBefore(twoDaysFromNow);
     }
 
     @Override

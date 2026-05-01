@@ -46,7 +46,12 @@ public class TaskForm extends VerticalLayout {
         TextArea description = new TextArea("Description");
         DateTimePicker dueDate = new DateTimePicker("Due date");
 
-        // --- THE SELECT COMPONENT ---
+
+        Select<String> categorySelect = new Select<>();
+        categorySelect.setLabel("Category");
+        categorySelect.setItems("Work", "School", "Home", "Casual");
+
+
         Select<String> subjectSelect = new Select<>();
         subjectSelect.setLabel("Subject");
 
@@ -71,9 +76,10 @@ public class TaskForm extends VerticalLayout {
         binder.forField(description).asRequired("Please enter a description").bind(Task::getDescription, Task::setDescription);
         binder.bind(dueDate, Task::getDueDate, Task::setDueDate);
         binder.bind(subjectSelect, Task::getSubject, Task::setSubject);
+        binder.bind(categorySelect, Task::getCategory, Task::setCategory);
 
         formLayout.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
-        formLayout.add(title, subjectSelect, description, dueDate);
+        formLayout.add(title, categorySelect, subjectSelect, description, dueDate);
 
         configureButtons();
         add(formLayout, new HorizontalLayout(saveBtn, cancelBtn));

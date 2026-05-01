@@ -2,8 +2,10 @@ package com.jry.base.ui.components;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.Composite;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.theme.lumo.LumoUtility;
@@ -25,7 +27,26 @@ public final class ViewToolbar extends Composite<HorizontalLayout> {
         title = new H1(viewTitle);
         title.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.Margin.NONE, LumoUtility.FontWeight.LIGHT);
 
-        var toggleAndTitle = new HorizontalLayout(drawerToggle, title);
+        //clock
+        Span clock = new Span();
+        clock.setId("real-time-clock"); // We need an ID so Javascript can find it
+        clock.getStyle().set("margin-left", "16px"); // Space it out from the title
+        clock.getStyle().set("font-size", "14px");
+        clock.getStyle().set("color", "#6b7280");
+        clock.getStyle().set("font-weight", "500");
+
+        // Inject Javascript to update this specific span every 1000 milliseconds (1 second)
+        UI.getCurrent().getPage().executeJs(
+                "setInterval(function() {" +
+                        "  var clockElement = document.getElementById('real-time-clock');" +
+                        "  if (clockElement) {" + // Make sure it exists before updating
+                        "      clockElement.innerText = new Date().toLocaleTimeString('en-US');" +
+                        "  }" +
+                        "}, 1000);"
+        );
+
+
+        var toggleAndTitle = new HorizontalLayout(drawerToggle, title, clock);
         toggleAndTitle.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
         layout.add(toggleAndTitle);
         layout.setFlexGrow(1, toggleAndTitle);
