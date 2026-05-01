@@ -14,24 +14,18 @@ public class TaskCard extends VerticalLayout {
     public static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("MMM dd yyyy hh:mm a", Locale.US);
 
     public TaskCard(Task task) {
-        // --- 1. BASE BOX STYLING ---
         getStyle().set("border", "1px solid #dcdcdc");
         getStyle().set("border-radius", "12px");
         getStyle().set("padding", "16px");
         getStyle().set("background-color", "#ffffff");
-
-        // Base shadow and transition speed for the animation
         getStyle().set("box-shadow", "0 4px 6px rgba(0, 0, 0, 0.1)");
         getStyle().set("transition", "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out");
 
-        // --- 2. HOVER ANIMATION LOGIC ---
-        // When mouse enters: Lift the card up 5 pixels and make the shadow larger
         getElement().addEventListener("mouseenter", e -> {
             getStyle().set("transform", "translateY(-5px)");
             getStyle().set("box-shadow", "0 12px 20px rgba(0, 0, 0, 0.15)");
         });
 
-        // When mouse leaves: Put the card back to normal
         getElement().addEventListener("mouseleave", e -> {
             getStyle().set("transform", "translateY(0)");
             getStyle().set("box-shadow", "0 4px 6px rgba(0, 0, 0, 0.1)");
@@ -39,7 +33,29 @@ public class TaskCard extends VerticalLayout {
 
         setWidthFull();
 
-        // --- 3. TEXT FIELDS ---
+        // --- 1. NEW TOP RIGHT SUBJECT PILL ---
+        HorizontalLayout header = new HorizontalLayout();
+        header.setWidthFull();
+        header.setJustifyContentMode(JustifyContentMode.END); // Pushes pill to the far right
+
+        if (task.getSubject() != null && !task.getSubject().isEmpty()) {
+            Span subjectPill = new Span(task.getSubject());
+            subjectPill.getStyle().set("padding", "4px 10px");
+            subjectPill.getStyle().set("border-radius", "12px");
+            subjectPill.getStyle().set("font-size", "12px");
+            subjectPill.getStyle().set("font-weight", "bold");
+            subjectPill.getStyle().set("color", "#111827"); // Dark text
+
+            // Apply the color from the database! (Fallback to light gray if null)
+            String bgColor = task.getSubjectColor() != null ? task.getSubjectColor() : "#f3f4f6";
+            subjectPill.getStyle().set("background-color", bgColor);
+
+            subjectPill.getStyle().set("color", getContrastTextColor(bgColor));
+
+            header.add(subjectPill);
+        }
+
+        // --- 2. TEXT FIELDS ---
         H3 title = new H3(task.getTitle());
         title.getStyle().set("margin-top", "0");
         title.getStyle().set("margin-bottom", "8px");
@@ -53,36 +69,53 @@ public class TaskCard extends VerticalLayout {
         date.getStyle().set("font-size", "14px");
         date.getStyle().set("color", "#888888");
 
-        // --- 4. SOFT BADGES ---
+        // --- 3. STATUS BADGE ---
         Span statusBadge = new Span();
         statusBadge.getStyle().set("padding", "4px 10px");
         statusBadge.getStyle().set("border-radius", "12px");
         statusBadge.getStyle().set("font-size", "12px");
         statusBadge.getStyle().set("font-weight", "bold");
 
-        // Apply "Soft" Colors (Light background, dark text of the same color)
         if (task.isCompleted()) {
             statusBadge.setText("Completed");
-            statusBadge.getStyle().set("color", "#166534"); // Dark Green Text
-            statusBadge.getStyle().set("background-color", "#dcfce7"); // Light Green BG
+            statusBadge.getStyle().set("color", "#166534");
+            statusBadge.getStyle().set("background-color", "#dcfce7");
         } else {
             statusBadge.setText("Ongoing");
-            statusBadge.getStyle().set("color", "#1e3a8a"); // Dark Blue Text
-            statusBadge.getStyle().set("background-color", "#dbeafe"); // Light Blue BG
+            statusBadge.getStyle().set("color", "#1e3a8a");
+            statusBadge.getStyle().set("background-color", "#dbeafe");
         }
 
-        if (task.getSubject() != null && !task.getSubject().isEmpty()) {
-            Span subjectTag = new Span(task.getSubject());
-            subjectTag.getStyle().set("font-size", "12px");
-            subjectTag.getStyle().set("color", "#6b7280"); // Gray text
-            add(subjectTag); // Add it wherever you want it to appear!
-        }
-
-        // --- 5. FOOTER ---
+        // --- 4. FOOTER ---
         HorizontalLayout footer = new HorizontalLayout(date, statusBadge);
         footer.setWidthFull();
         footer.setJustifyContentMode(JustifyContentMode.BETWEEN);
 
-        add(title, description, footer);
+        // Add the header to the very top!
+        add(header, title, description, footer);
+    }
+
+    private String getContrastTextColor(String hexColor) {
+        // Safety check: ensure it's a valid 7-character hex string (e.g., "#ff0000")
+        if (hexColor == null || !hexColor.startsWith("#") || hexColor.length() != 7) {
+            return "#111827"; // Default to dark text
+        }
+
+        try {
+            // Extract the Red, Green, and Blue values from the hex string
+            int r = Integer.valueOf(hexColor.substring(1, 3), 16);
+            int g = Integer.valueOf(hexColor.substring(3, 5), 16);
+            int b = Integer.valueOf(hexColor.substring(5, 7), 16);
+
+            // Standard formula for perceived brightness
+            double brightness = (r * 299 + g * 587 + b * 114) / 1000.0;
+
+            // If brightness is less than 128 (out of 255), it's a dark color. Return white text.
+            return brightness < 128 ? "#ffffff" : "#111827";
+
+        } catch (Exception e) {
+            // If the hex parsing fails for any reason, default to dark text
+            return "#111827";
+        }
     }
 }

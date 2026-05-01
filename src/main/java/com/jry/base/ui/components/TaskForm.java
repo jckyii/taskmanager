@@ -3,10 +3,11 @@ package com.jry.base.ui.components;
 import com.jry.backend.Task;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.datetimepicker.DateTimePicker;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.html.Input;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
@@ -14,21 +15,15 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 
-import java.time.Duration;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
 import java.util.function.Consumer;
 
-public class TaskForm extends VerticalLayout {//CHANGE TO DIALOGUE POPUP LATER
+public class TaskForm extends VerticalLayout {
     private Task task;
     private final Binder<Task> binder = new Binder<>(Task.class);
-    private final List<String> availableSubjects = new ArrayList<>(
-            Arrays.asList("Math", "Science", "History")
-    );
-    private final String ADD_NEW_OPTION = "+ Add New Subject...";
 
     private final FormLayout formLayout = new FormLayout();
     private final Button saveBtn = new Button("Save");
@@ -37,53 +32,61 @@ public class TaskForm extends VerticalLayout {//CHANGE TO DIALOGUE POPUP LATER
     private Consumer<Task> onSave;
     private Runnable onCancel;
 
+    // Map to store our subjects AND their colors
+    private final Map<String, String> subjectColorMap = new HashMap<>();
+    private final String ADD_NEW_OPTION = "+ Add New Subject...";
+
     public TaskForm() {
+        // Pre-load some default subjects and colors
+        subjectColorMap.put("Math", "#fecaca"); // Light Red
+        subjectColorMap.put("Science", "#bbf7d0"); // Light Green
+        subjectColorMap.put("History", "#fef08a"); // Light Yellow
+
         TextField title = new TextField("Title");
         TextArea description = new TextArea("Description");
-        DateTimePicker dueDate = new DateTimePicker("Due Date");
-        dueDate.setLocale(Locale.US);
-        dueDate.setStep(Duration.ofMinutes(30));
+        DateTimePicker dueDate = new DateTimePicker("Due date");
 
-
-        binder.forField(title)
-                .asRequired("Title is required")
-                .bind(Task::getTitle, Task::setTitle);
-
-        binder.forField(description)
-                .bind(Task::getDescription, Task::setDescription);
-
-        binder.forField(dueDate)
-                .bind(Task::getDueDate, Task::setDueDate);
-
-        formLayout.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
-        formLayout.add(title, description, dueDate);
-
+        // --- THE SELECT COMPONENT ---
         Select<String> subjectSelect = new Select<>();
         subjectSelect.setLabel("Subject");
-        updateSelectItems(subjectSelect); // Custom method to load items (see below)
 
-        // 2. Listen for when they choose an item
+        // Load items and ensure "+ Add New..." is at the bottom
+        updateSelectItems(subjectSelect);
+
+        // Listen for when they choose an item
         subjectSelect.addValueChangeListener(event -> {
-            if (ADD_NEW_OPTION.equals(event.getValue())) {
-                // If they picked "+ Add New...", open a popup!
+            String selected = event.getValue();
+
+            if (ADD_NEW_OPTION.equals(selected)) {
+                // Open the dialog asking for Name AND Color
                 openNewSubjectDialog(subjectSelect, event.getOldValue());
+            } else if (selected != null && subjectColorMap.containsKey(selected) && this.task != null) {
+                // Update the task's color in the background when they pick a standard subject
+                this.task.setSubjectColor(subjectColorMap.get(selected));
             }
         });
+        // -----------------------------
+
+        binder.forField(title).asRequired("Please enter a title").bind(Task::getTitle, Task::setTitle);
+        binder.forField(description).asRequired("Please enter a description").bind(Task::getDescription, Task::setDescription);
+        binder.bind(dueDate, Task::getDueDate, Task::setDueDate);
         binder.bind(subjectSelect, Task::getSubject, Task::setSubject);
 
+        formLayout.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
+        formLayout.add(title, subjectSelect, description, dueDate);
 
         configureButtons();
         add(formLayout, new HorizontalLayout(saveBtn, cancelBtn));
     }
 
-    // Helper method to refresh the Select list so "+ Add New..." is always at the bottom
+    // Helper method to keep "+ Add New..." at the bottom of the list
     private void updateSelectItems(Select<String> select) {
-        List<String> currentItems = new ArrayList<>(availableSubjects);
-        currentItems.add(ADD_NEW_OPTION); // Stick the action button at the very end
+        List<String> currentItems = new ArrayList<>(subjectColorMap.keySet());
+        currentItems.add(ADD_NEW_OPTION);
         select.setItems(currentItems);
     }
 
-    // Opens a popup window to type the new subject
+    // --- THE COMBINED DIALOG POPUP ---
     private void openNewSubjectDialog(Select<String> subjectSelect, String previousValue) {
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle("Create New Subject");
@@ -91,33 +94,50 @@ public class TaskForm extends VerticalLayout {//CHANGE TO DIALOGUE POPUP LATER
         TextField newSubjectField = new TextField("Subject Name");
         newSubjectField.setWidthFull();
 
+        Input colorPicker = new Input();
+        colorPicker.setType("color");
+        colorPicker.setValue("#e5e7eb"); // Default gray
+
         Button saveButton = new Button("Save", e -> {
-            String newSubject = newSubjectField.getValue();
-            if (!newSubject.trim().isEmpty() && !availableSubjects.contains(newSubject)) {
-                availableSubjects.add(newSubject); // Save it to our list
-                updateSelectItems(subjectSelect);  // Refresh the dropdown
-                subjectSelect.setValue(newSubject); // Select the newly created subject!
+            String newSubject = newSubjectField.getValue().trim();
+
+            // Validate that they actually typed something and it isn't a duplicate
+            if (!newSubject.isEmpty() && !subjectColorMap.containsKey(newSubject) && !newSubject.equals(ADD_NEW_OPTION)) {
+                String chosenColor = colorPicker.getValue();
+
+                subjectColorMap.put(newSubject, chosenColor); // Save to our list
+                updateSelectItems(subjectSelect);             // Refresh dropdown
+                subjectSelect.setValue(newSubject);           // Select it
+
+                if (this.task != null) {
+                    this.task.setSubjectColor(chosenColor);   // Attach color to task
+                }
+                dialog.close();
+            } else {
+                newSubjectField.setInvalid(true);
+                newSubjectField.setErrorMessage("Invalid or duplicate name");
             }
-            dialog.close();
         });
-        saveButton.getStyle().set("background-color", "#006af5");
-        saveButton.getStyle().set("color", "white");
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         Button cancelButton = new Button("Cancel", e -> {
-            // Put the dropdown back to whatever it was before they clicked "+ Add New"
+            // Revert the dropdown back to what they had selected previously
             subjectSelect.setValue(previousValue);
             dialog.close();
         });
 
-        HorizontalLayout dialogButtons = new HorizontalLayout(cancelButton, saveButton);
-        dialog.getFooter().add(dialogButtons);
-        dialog.add(newSubjectField);
+        // Layout for the color picker row
+        HorizontalLayout colorLayout = new HorizontalLayout(new Span("Select Color: "), colorPicker);
+        colorLayout.setAlignItems(Alignment.CENTER);
 
+        // Put the text field and color layout inside the dialog
+        VerticalLayout dialogLayout = new VerticalLayout(newSubjectField, colorLayout);
+        dialogLayout.setPadding(false);
+
+        dialog.add(dialogLayout);
+        dialog.getFooter().add(cancelButton, saveButton);
         dialog.open();
     }
-
-
-
 
     private void configureButtons() {
         saveBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -137,10 +157,6 @@ public class TaskForm extends VerticalLayout {//CHANGE TO DIALOGUE POPUP LATER
         });
     }
 
-
-
-
-
     public void setTask(Task task) {
         this.task = task;
         binder.readBean(task);
@@ -153,12 +169,9 @@ public class TaskForm extends VerticalLayout {//CHANGE TO DIALOGUE POPUP LATER
     public void addSaveListener(Consumer<Task> onSave) { this.onSave = onSave; }
     public void addCancelListener(Runnable onCancel) { this.onCancel = onCancel; }
 
-
     public void setEditable(boolean isEditing) {
-        binder.getFields().forEach(field -> field.setReadOnly(!isEditing));
-        saveBtn.setEnabled(isEditing);
+        binder.setReadOnly(!isEditing);
         saveBtn.setVisible(isEditing);
-        cancelBtn.setEnabled(isEditing);
         cancelBtn.setVisible(isEditing);
     }
 }
