@@ -36,6 +36,9 @@ public class Task {
     @Column(name = "subject")
     private String subject = "";
 
+    @Column(name = "subject_color")
+    private String subjectColor = "#e5e7eb"; // Default light gray
+
     // Add the getter and setter
     public boolean isCompleted() {
         return isCompleted;
@@ -116,6 +119,14 @@ public class Task {
 
     public void setSubject(String subject) {
         this.subject = subject;
+    }
+
+    public String getSubjectColor() {
+        return subjectColor;
+    }
+
+    public void setSubjectColor(String subjectColor) {
+        this.subjectColor = subjectColor;
     }
 
 
