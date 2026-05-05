@@ -1,7 +1,7 @@
 package com.jry.base.ui.views;
 
-import com.jry.backend.Task;
-import com.jry.backend.TaskRepository;
+import com.jry.backend.entities.Task;
+import com.jry.backend.entities.TaskRepository;
 import com.jry.base.ui.components.TaskForm;
 import com.vaadin.flow.component.button.Button;
 
@@ -9,7 +9,6 @@ import com.jry.base.ui.components.ViewToolbar;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.Route;
-import jakarta.annotation.security.RolesAllowed;
 
 @Route("tasks/new")
 public class NewTask extends VerticalLayout {

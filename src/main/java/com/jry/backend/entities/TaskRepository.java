@@ -1,4 +1,4 @@
-package com.jry.backend;
+package com.jry.backend.entities;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
