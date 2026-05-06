@@ -1,6 +1,6 @@
 package com.jry.examplefeature;
 
-import com.jry.backend.Task;
+import com.jry.backend.entities.Task;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

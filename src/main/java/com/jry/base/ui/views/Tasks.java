@@ -1,7 +1,9 @@
 package com.jry.base.ui.views;
 
-import com.jry.backend.Task;
-import com.jry.backend.TaskRepository;
+import com.jry.backend.entities.ApplicationUser;
+import com.jry.backend.entities.Task;
+import com.jry.backend.entities.TaskRepository;
+import com.jry.backend.entities.UserRepository;
 import com.jry.base.ui.components.TaskCardList;
 import com.jry.base.ui.components.ViewToolbar;
 import com.vaadin.flow.component.button.Button;
@@ -14,20 +16,27 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.*;
 import com.vaadin.flow.component.page.WebStorage;
+import com.vaadin.flow.spring.security.AuthenticationContext;
+import jakarta.annotation.security.PermitAll;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Route("")
 @PageTitle("My Tasks")
+@PermitAll
 @Menu(order = 1, icon = "vaadin:tasks", title = "My Tasks")
 public class Tasks extends VerticalLayout implements BeforeEnterObserver {
     private final TaskRepository taskRepo;
 
-    public Tasks(TaskRepository taskRepo) {
+    public Tasks(TaskRepository taskRepo, UserRepository userRepo, AuthenticationContext authContext) {
         this.taskRepo = taskRepo;
 
-        List<Task> allTasksInDatabase = taskRepo.findAll();
+        String username = authContext.getAuthenticatedUser(UserDetails.class).get().getUsername();
+        ApplicationUser currentUser = userRepo.findByUsername(username).get();
+
+        List<Task> allTasksInDatabase = taskRepo.findByUser(currentUser);
         TaskCardList grid = new TaskCardList(allTasksInDatabase);
 
         Button addBtn = new Button("New Task");

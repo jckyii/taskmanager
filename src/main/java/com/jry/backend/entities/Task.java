@@ -1,8 +1,10 @@
-package com.jry.backend;
+package com.jry.backend.entities;
 
 import jakarta.persistence.*;
 import org.jspecify.annotations.Nullable;
-
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.FetchType;
 import java.time.Instant;
 import java.time.LocalDateTime;
 
@@ -16,6 +18,10 @@ public class Task {
 
     @Column(name = "task_id")
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private ApplicationUser user;
 
     @Column(name = "title", nullable = false, length = TITLE_MAX_LENGTH)
     private String title = "";
@@ -142,7 +148,15 @@ public class Task {
         this.category = category;
     }
 
+    public ApplicationUser getUser() {
+        return user;
+    }
 
+    public void setUser(ApplicationUser user) {
+        this.user = user;
+    }
+
+    
 
     @Override
     public boolean equals(Object obj) {

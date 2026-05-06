@@ -1,7 +1,6 @@
 package com.jry.base.ui.components;
 
-import com.jry.backend.Task;
-import com.vaadin.flow.component.html.H2;
+import com.jry.backend.entities.Task;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;

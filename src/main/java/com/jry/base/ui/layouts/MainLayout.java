@@ -15,6 +15,7 @@ import com.vaadin.flow.router.Layout;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
 import com.vaadin.flow.server.menu.MenuConfiguration;
 import com.vaadin.flow.server.menu.MenuEntry;
+import jakarta.annotation.security.PermitAll;
 
 @Layout
 @AnonymousAllowed

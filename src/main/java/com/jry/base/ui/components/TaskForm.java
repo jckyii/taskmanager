@@ -1,6 +1,6 @@
 package com.jry.base.ui.components;
 
-import com.jry.backend.Task;
+import com.jry.backend.entities.Task;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.datepicker.DatePicker;
