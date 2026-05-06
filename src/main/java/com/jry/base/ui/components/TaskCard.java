@@ -1,6 +1,7 @@
 package com.jry.base.ui.components;
 
 import com.jry.backend.Task;
+import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
@@ -30,7 +31,7 @@ public class TaskCard extends VerticalLayout {
         // --- 2. BASE BOX STYLING ---
         getStyle().set("border", "1px solid #dcdcdc");
         getStyle().set("border-radius", "12px");
-        getStyle().set("padding", "16px");
+        getStyle().set("padding", "14px");
         getStyle().set("background-color", cardBackground); // Apply our dynamic tint!
         getStyle().set("box-shadow", "0 4px 6px rgba(0, 0, 0, 0.1)");
         getStyle().set("transition", "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out");
@@ -46,11 +47,14 @@ public class TaskCard extends VerticalLayout {
         });
 
         setWidthFull();
+        setSpacing(false);
 
         // --- 3. TOP RIGHT SUBJECT PILL ---
         HorizontalLayout header = new HorizontalLayout();
         header.setWidthFull();
         header.setJustifyContentMode(JustifyContentMode.END);
+
+        header.setMinHeight("28px");
 
         if (task.getSubject() != null && !task.getSubject().isEmpty()) {
             Span subjectPill = new Span(task.getSubject());
@@ -69,20 +73,24 @@ public class TaskCard extends VerticalLayout {
 
         // --- 4. TEXT FIELDS ---
         H3 title = new H3(task.getTitle());
-        title.getStyle().set("margin-top", "0");
-        title.getStyle().set("margin-bottom", "8px");
+        title.getStyle().set("margin-top", "-8px");
+        title.getStyle().set("margin-bottom", "4px");
 
-        Paragraph description = new Paragraph(task.getDescription());
-        description.getStyle().set("color", "#666666");
-        description.getStyle().set("margin-top", "0");
+        // Add the header and title to the card first
+        add(header, title);
 
-        String dateString = task.getDueDate() != null ? task.getDueDate().format(DATE_TIME_FORMATTER) : "No due date";
-        Span date = new Span("Due: " + dateString);
-        date.getStyle().set("font-size", "14px");
-        date.getStyle().set("color", "#888888");
+        // Only create and add the description if it actually exists!
+        if (task.getDescription() != null && !task.getDescription().trim().isEmpty()) {
+            Paragraph description = new Paragraph(task.getDescription());
+            description.getStyle().set("color", "#666666");
+            description.getStyle().set("margin-top", "0");
+            description.getStyle().set("margin-bottom", "12px");
+            add(description); // Add it right under the title
+        }
 
         // --- 5. CATEGORY BADGE ---
         Span categoryBadge = new Span(task.getCategory() != null ? task.getCategory() : "Personal");
+        // ... (Keep your existing Category styling here) ...
         categoryBadge.getStyle().set("padding", "4px 10px");
         categoryBadge.getStyle().set("border-radius", "12px");
         categoryBadge.getStyle().set("font-size", "12px");
@@ -111,13 +119,13 @@ public class TaskCard extends VerticalLayout {
 
         // --- 6. STATUS BADGE ---
         Span statusBadge = new Span();
+        // ... (Keep your existing Status styling here) ...
         statusBadge.getStyle().set("padding", "4px 10px");
         statusBadge.getStyle().set("border-radius", "12px");
         statusBadge.getStyle().set("font-size", "12px");
         statusBadge.getStyle().set("font-weight", "bold");
         statusBadge.getStyle().set("border", "1px solid rgba(0, 0, 0, 0.15)");
 
-        // Sync the badge logic with our new Effectively Completed rule
         if (isEffectivelyCompleted) {
             statusBadge.setText("Completed");
             statusBadge.getStyle().set("color", "#166534");
@@ -132,6 +140,11 @@ public class TaskCard extends VerticalLayout {
             statusBadge.getStyle().set("background-color", "#dbeafe");
         }
 
+        String dateString = task.getDueDate() != null ? task.getDueDate().format(DATE_TIME_FORMATTER) : "No due date";
+        Span date = new Span("Due: " + dateString);
+        date.getStyle().set("font-size", "14px");
+        date.getStyle().set("color", "#888888");
+
         // --- 7. FOOTER LAYOUT ---
         HorizontalLayout rightBadges = new HorizontalLayout(categoryBadge, statusBadge);
         rightBadges.getStyle().set("gap", "8px");
@@ -141,7 +154,8 @@ public class TaskCard extends VerticalLayout {
         footer.setAlignItems(Alignment.CENTER);
         footer.setJustifyContentMode(JustifyContentMode.BETWEEN);
 
-        add(header, title, description, footer);
+        // Finally, add the footer to the very bottom!
+        add(footer);
     }
 
     private String getContrastTextColor(String hexColor) {

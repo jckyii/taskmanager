@@ -3,7 +3,7 @@ package com.jry.base.ui.components;
 import com.jry.backend.Task;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.datetimepicker.DateTimePicker;
+import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Input;
@@ -13,8 +13,11 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.timepicker.TimePicker;
 import com.vaadin.flow.data.binder.Binder;
 
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,70 +32,71 @@ public class TaskForm extends VerticalLayout {
     private final Button saveBtn = new Button("Save");
     private final Button cancelBtn = new Button("Cancel");
 
+    // --- NEW SEPARATED DATE & TIME PICKERS ---
+    private final DatePicker dueDatePicker = new DatePicker("Due date");
+    private final TimePicker dueTimePicker = new TimePicker("Time (optional)");
+    // -----------------------------------------
+
     private Consumer<Task> onSave;
     private Runnable onCancel;
 
-    // Map to store our subjects AND their colors
     private final Map<String, String> subjectColorMap = new HashMap<>();
     private final String ADD_NEW_OPTION = "+ Add New Subject...";
 
     public TaskForm() {
-        // Pre-load some default subjects and colors
-        subjectColorMap.put("Math", "#fecaca"); // Light Red
-        subjectColorMap.put("Science", "#bbf7d0"); // Light Green
-        subjectColorMap.put("History", "#fef08a"); // Light Yellow
+        subjectColorMap.put("Math", "#fecaca");
+        subjectColorMap.put("Science", "#bbf7d0");
+        subjectColorMap.put("History", "#fef08a");
 
         TextField title = new TextField("Title");
-        TextArea description = new TextArea("Description");
-        DateTimePicker dueDate = new DateTimePicker("Due date");
-
 
         Select<String> categorySelect = new Select<>();
         categorySelect.setLabel("Category");
         categorySelect.setItems("Work", "School", "Home", "Casual");
 
-
         Select<String> subjectSelect = new Select<>();
         subjectSelect.setLabel("Subject");
 
-        // Load items and ensure "+ Add New..." is at the bottom
         updateSelectItems(subjectSelect);
 
-        // Listen for when they choose an item
         subjectSelect.addValueChangeListener(event -> {
             String selected = event.getValue();
-
             if (ADD_NEW_OPTION.equals(selected)) {
-                // Open the dialog asking for Name AND Color
                 openNewSubjectDialog(subjectSelect, event.getOldValue());
             } else if (selected != null && subjectColorMap.containsKey(selected) && this.task != null) {
-                // Update the task's color in the background when they pick a standard subject
                 this.task.setSubjectColor(subjectColorMap.get(selected));
             }
         });
-        // -----------------------------
+
+        TextArea description = new TextArea("Description");
+
+        // Put the Date and Time pickers perfectly side-by-side
+        HorizontalLayout dateLayout = new HorizontalLayout(dueDatePicker, dueTimePicker);
+        dateLayout.setWidthFull();
+        dueDatePicker.setWidth("50%");
+        dueTimePicker.setWidth("50%");
 
         binder.forField(title).asRequired("Please enter a title").bind(Task::getTitle, Task::setTitle);
-        binder.forField(description).asRequired("Please enter a description").bind(Task::getDescription, Task::setDescription);
-        binder.bind(dueDate, Task::getDueDate, Task::setDueDate);
+        binder.bind(description, Task::getDescription, Task::setDescription);
         binder.bind(subjectSelect, Task::getSubject, Task::setSubject);
         binder.bind(categorySelect, Task::getCategory, Task::setCategory);
+        // Notice we do NOT bind the date/time here anymore! We handle it manually on save.
 
         formLayout.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
-        formLayout.add(title, categorySelect, subjectSelect, description, dueDate);
+
+        // Add the new grouped dateLayout to the form
+        formLayout.add(title, categorySelect, subjectSelect, description, dateLayout);
 
         configureButtons();
         add(formLayout, new HorizontalLayout(saveBtn, cancelBtn));
     }
 
-    // Helper method to keep "+ Add New..." at the bottom of the list
     private void updateSelectItems(Select<String> select) {
         List<String> currentItems = new ArrayList<>(subjectColorMap.keySet());
         currentItems.add(ADD_NEW_OPTION);
         select.setItems(currentItems);
     }
 
-    // --- THE COMBINED DIALOG POPUP ---
     private void openNewSubjectDialog(Select<String> subjectSelect, String previousValue) {
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle("Create New Subject");
@@ -102,21 +106,17 @@ public class TaskForm extends VerticalLayout {
 
         Input colorPicker = new Input();
         colorPicker.setType("color");
-        colorPicker.setValue("#e5e7eb"); // Default gray
+        colorPicker.setValue("#e5e7eb");
 
         Button saveButton = new Button("Save", e -> {
             String newSubject = newSubjectField.getValue().trim();
-
-            // Validate that they actually typed something and it isn't a duplicate
             if (!newSubject.isEmpty() && !subjectColorMap.containsKey(newSubject) && !newSubject.equals(ADD_NEW_OPTION)) {
                 String chosenColor = colorPicker.getValue();
-
-                subjectColorMap.put(newSubject, chosenColor); // Save to our list
-                updateSelectItems(subjectSelect);             // Refresh dropdown
-                subjectSelect.setValue(newSubject);           // Select it
-
+                subjectColorMap.put(newSubject, chosenColor);
+                updateSelectItems(subjectSelect);
+                subjectSelect.setValue(newSubject);
                 if (this.task != null) {
-                    this.task.setSubjectColor(chosenColor);   // Attach color to task
+                    this.task.setSubjectColor(chosenColor);
                 }
                 dialog.close();
             } else {
@@ -127,16 +127,12 @@ public class TaskForm extends VerticalLayout {
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         Button cancelButton = new Button("Cancel", e -> {
-            // Revert the dropdown back to what they had selected previously
             subjectSelect.setValue(previousValue);
             dialog.close();
         });
 
-        // Layout for the color picker row
         HorizontalLayout colorLayout = new HorizontalLayout(new Span("Select Color: "), colorPicker);
         colorLayout.setAlignItems(Alignment.CENTER);
-
-        // Put the text field and color layout inside the dialog
         VerticalLayout dialogLayout = new VerticalLayout(newSubjectField, colorLayout);
         dialogLayout.setPadding(false);
 
@@ -150,12 +146,23 @@ public class TaskForm extends VerticalLayout {
         cancelBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
         cancelBtn.addClickListener(e -> {
-            binder.readBean(task);
+            resetForm();
             if(onCancel != null) onCancel.run();
         });
 
         saveBtn.addClickListener(e -> {
             if (binder.writeBeanIfValid(task)) {
+
+                // --- MANUAL DATE/TIME MERGING MAGIC ---
+                if (dueDatePicker.getValue() != null) {
+                    // If no time is chosen, default it to 11:59 PM (End of Day)
+                    LocalTime time = dueTimePicker.getValue() != null ? dueTimePicker.getValue() : LocalTime.of(23, 59);
+                    task.setDueDate(LocalDateTime.of(dueDatePicker.getValue(), time));
+                } else {
+                    task.setDueDate(null); // No date chosen at all
+                }
+                // --------------------------------------
+
                 if(onSave != null) onSave.accept(task);
             } else {
                 binder.validate();
@@ -166,10 +173,23 @@ public class TaskForm extends VerticalLayout {
     public void setTask(Task task) {
         this.task = task;
         binder.readBean(task);
+        updateDateAndTimeFields();
     }
 
     public void resetForm() {
         binder.readBean(task);
+        updateDateAndTimeFields();
+    }
+
+    // Helper method to load existing date/time when you click an old task
+    private void updateDateAndTimeFields() {
+        if (this.task != null && this.task.getDueDate() != null) {
+            dueDatePicker.setValue(this.task.getDueDate().toLocalDate());
+            dueTimePicker.setValue(this.task.getDueDate().toLocalTime());
+        } else {
+            dueDatePicker.clear();
+            dueTimePicker.clear();
+        }
     }
 
     public void addSaveListener(Consumer<Task> onSave) { this.onSave = onSave; }
@@ -177,6 +197,8 @@ public class TaskForm extends VerticalLayout {
 
     public void setEditable(boolean isEditing) {
         binder.setReadOnly(!isEditing);
+        dueDatePicker.setReadOnly(!isEditing); // Manually lock the new fields
+        dueTimePicker.setReadOnly(!isEditing); // Manually lock the new fields
         saveBtn.setVisible(isEditing);
         cancelBtn.setVisible(isEditing);
     }
