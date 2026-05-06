@@ -46,7 +46,7 @@ public class Task {
     private String subjectColor = "#e5e7eb"; // Default light gray
 
     @Column(name = "category")
-    private String category = "Personal"; // Default category
+    private String category = "Uncategorized"; // Default category
 
 
 
@@ -156,7 +156,7 @@ public class Task {
         this.user = user;
     }
 
-    
+
 
     @Override
     public boolean equals(Object obj) {

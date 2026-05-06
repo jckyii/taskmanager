@@ -68,7 +68,7 @@ public class Tasks extends VerticalLayout implements BeforeEnterObserver {
         searchFilter.setValueChangeMode(ValueChangeMode.LAZY);
 
         ComboBox<String> categoryFilter = new ComboBox<>();
-        categoryFilter.setItems("All Categories", "Work", "School", "Home", "Casual");
+        categoryFilter.setItems("All Categories", "Work", "School", "Home", "Casual", "Uncategorized");
         categoryFilter.setValue("All Categories");
 
         List<String> existingSubjects = allTasksInDatabase.stream()

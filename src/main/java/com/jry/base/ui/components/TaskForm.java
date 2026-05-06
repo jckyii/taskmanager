@@ -52,7 +52,7 @@ public class TaskForm extends VerticalLayout {
 
         Select<String> categorySelect = new Select<>();
         categorySelect.setLabel("Category");
-        categorySelect.setItems("Work", "School", "Home", "Casual");
+        categorySelect.setItems("Work", "School", "Home", "Casual", "Uncategorized");
 
         Select<String> subjectSelect = new Select<>();
         subjectSelect.setLabel("Subject");

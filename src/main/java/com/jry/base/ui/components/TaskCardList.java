@@ -42,12 +42,22 @@ public class TaskCardList extends VerticalLayout {
                     }
                     boolean matchesCategory = true;
                     if (category != null && !category.equals("All Categories")) {
-                        matchesCategory = task.getCategory() != null && task.getCategory().equals(category);
+                        if (category.equals("Uncategorized")) {
+                            // Catch new uncategorized tasks, old "Personal" tasks, and nulls
+                            matchesCategory = task.getCategory() == null ||
+                                    task.getCategory().isEmpty() ||
+                                    task.getCategory().equals("Uncategorized") ||
+                                    task.getCategory().equals("Personal");
+                        } else {
+                            // Standard exact match for Work, School, etc.
+                            matchesCategory = task.getCategory() != null && task.getCategory().equals(category);
+                        }
                     }
                     boolean matchesSubject = true;
                     if (subject != null && !subject.equals("All Subjects")) {
                         matchesSubject = task.getSubject() != null && task.getSubject().equals(subject);
                     }
+
                     return matchesText && matchesCategory && matchesSubject;
                 })
                 .sorted(Comparator.comparing(Task::getDueDate, Comparator.nullsLast(Comparator.naturalOrder())))
