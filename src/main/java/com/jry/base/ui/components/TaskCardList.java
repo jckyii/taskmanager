@@ -16,10 +16,12 @@ import java.util.stream.Collectors;
 public class TaskCardList extends VerticalLayout {
     private final List<Task> allTasks;
     private final Consumer<Task> onDelete;
+    private final Consumer<Task> onComplete;
 
-    public TaskCardList(List<Task> allTasks, Consumer<Task> onDelete) {
+    public TaskCardList(List<Task> allTasks, Consumer<Task> onComplete, Consumer<Task> onDelete) {
         this.allTasks = allTasks;
-        this.onDelete = onDelete; // Save it
+        this.onDelete = onDelete;
+        this.onComplete = onComplete;
         setWidthFull();
         setPadding(false);
         setSpacing(true);
@@ -34,7 +36,6 @@ public class TaskCardList extends VerticalLayout {
         removeAll();
         String lowerTerm = (searchTerm == null) ? "" : searchTerm.toLowerCase();
 
-        // 1. Filter the tasks exactly like before
         List<Task> filteredTasks = allTasks.stream()
                 .filter(task -> {
                     boolean matchesText = true;
@@ -46,13 +47,11 @@ public class TaskCardList extends VerticalLayout {
                     boolean matchesCategory = true;
                     if (category != null && !category.equals("All Categories")) {
                         if (category.equals("Uncategorized")) {
-                            // Catch new uncategorized tasks, old "Personal" tasks, and nulls
                             matchesCategory = task.getCategory() == null ||
                                     task.getCategory().isEmpty() ||
                                     task.getCategory().equals("Uncategorized") ||
                                     task.getCategory().equals("Personal");
                         } else {
-                            // Standard exact match for Work, School, etc.
                             matchesCategory = task.getCategory() != null && task.getCategory().equals(category);
                         }
                     }
@@ -63,10 +62,20 @@ public class TaskCardList extends VerticalLayout {
 
                     return matchesText && matchesCategory && matchesSubject;
                 })
-                .sorted(Comparator.comparing(Task::getDueDate, Comparator.nullsLast(Comparator.naturalOrder())))
+                // --- THE SORTING FIX ---
+                .sorted((t1, t2) -> {
+                    // 1. Force Completed tasks to the very top
+                    if (t1.isCompleted() != t2.isCompleted()) {
+                        return Boolean.compare(t2.isCompleted(), t1.isCompleted());
+                    }
+                    // 2. Otherwise, sort by Due Date chronologically
+                    if (t1.getDueDate() == null && t2.getDueDate() == null) return 0;
+                    if (t1.getDueDate() == null) return 1;
+                    if (t2.getDueDate() == null) return -1;
+                    return t1.getDueDate().compareTo(t2.getDueDate());
+                })
                 .collect(Collectors.toList());
 
-        // 2. Route to the correct grouping view
         if ("Group by Date".equals(groupBy)) {
             renderGroupByDate(filteredTasks);
         } else if ("Group by Subject".equals(groupBy)) {
@@ -77,7 +86,7 @@ public class TaskCardList extends VerticalLayout {
     }
 
     // ==========================================
-    // VIEW 1: GROUP BY STATUS (Original View)
+    // VIEW 1: GROUP BY STATUS
     // ==========================================
     private void renderGroupByStatus(List<Task> tasks) {
         VerticalLayout completedLayout = createInnerLayout();
@@ -88,12 +97,13 @@ public class TaskCardList extends VerticalLayout {
 
         for (Task task : tasks) {
             TaskCard card = createTaskCard(task);
-            boolean isPastDue = task.getDueDate() != null && task.getDueDate().isBefore(LocalDateTime.now());
+            boolean isPastDue = task.getDueDate() != null && task.getDueDate().isBefore(LocalDateTime.now()) && !task.isCompleted();
 
-            if (task.isCompleted() || isPastDue) {
+            if (task.isCompleted()) {
                 completedLayout.add(card);
                 completedCount++;
-            } else if (task.isUrgent()) {
+            } else if (task.isUrgent() || isPastDue) {
+                // Grouping Urgent and Overdue together for visual hierarchy
                 urgentLayout.add(card);
                 urgentCount++;
             } else {
@@ -103,7 +113,7 @@ public class TaskCardList extends VerticalLayout {
         }
 
         add(createDetailsBar("Completed", completedCount, "#166534", "#dcfce7", completedLayout, false));
-        add(createDetailsBar("Urgent", urgentCount, "#991b1b", "#fee2e2", urgentLayout, true));
+        add(createDetailsBar("Urgent / Overdue", urgentCount, "#991b1b", "#fee2e2", urgentLayout, true));
         add(createDetailsBar("Ongoing", ongoingCount, "#1e3a8a", "#dbeafe", ongoingLayout, true));
     }
 
@@ -111,7 +121,6 @@ public class TaskCardList extends VerticalLayout {
     // VIEW 2: GROUP BY DATE
     // ==========================================
     private void renderGroupByDate(List<Task> tasks) {
-        // Group tasks by their specific LocalDate (ignoring time)
         Map<LocalDate, List<Task>> tasksByDate = new HashMap<>();
         List<Task> noDateTasks = new ArrayList<>();
 
@@ -124,23 +133,16 @@ public class TaskCardList extends VerticalLayout {
             }
         }
 
-        // --- 1. NEW: DRAW THE "NO DUE DATE" BUCKET FIRST ---
         if (!noDateTasks.isEmpty()) {
             VerticalLayout noDateLayout = createInnerLayout();
             for (Task task : noDateTasks) {
                 noDateLayout.add(createTaskCard(task));
             }
-
-            // set the last parameter to 'false' so this accordion starts CLOSED.
-            // This acts like an Inbox and prevents your unscheduled tasks from hiding "Today's" tasks!
             add(createDetailsBar("No Due Date", noDateTasks.size(), "#4b5563", "#e5e7eb", noDateLayout, false));
         }
 
-        // --- 2. THEN DRAW THE REST OF THE DATES CHRONOLOGICALLY ---
-        // Sort dates chronologically (closest to today at top)
         List<LocalDate> sortedDates = new ArrayList<>(tasksByDate.keySet());
         Collections.sort(sortedDates);
-
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE, MMM dd, yyyy");
 
         for (LocalDate date : sortedDates) {
@@ -162,12 +164,11 @@ public class TaskCardList extends VerticalLayout {
     // VIEW 3: GROUP BY SUBJECT
     // ==========================================
     private void renderGroupBySubject(List<Task> filteredTasks) {
-        // Get all unique subjects from the ENTIRE database (so empty ones still show up)
         List<String> allKnownSubjects = allTasks.stream()
                 .map(Task::getSubject)
                 .filter(s -> s != null && !s.isEmpty())
                 .distinct()
-                .sorted() // Alphabetical order
+                .sorted()
                 .collect(Collectors.toList());
 
         for (String subject : allKnownSubjects) {
@@ -181,7 +182,6 @@ public class TaskCardList extends VerticalLayout {
                 }
             }
 
-            // Grab the color from the first matching task, or default to gray
             String bgColor = "#f3f4f6";
             Optional<Task> firstTask = allTasks.stream().filter(t -> subject.equals(t.getSubject()) && t.getSubjectColor() != null).findFirst();
             if (firstTask.isPresent()) bgColor = firstTask.get().getSubjectColor();
@@ -189,7 +189,6 @@ public class TaskCardList extends VerticalLayout {
             add(createDetailsBar(subject, taskCount, "#111827", bgColor, subjectLayout, true));
         }
 
-        // Catch-all for tasks that don't have a subject assigned
         List<Task> noSubjectTasks = filteredTasks.stream().filter(t -> t.getSubject() == null || t.getSubject().isEmpty()).collect(Collectors.toList());
         if(!noSubjectTasks.isEmpty()) {
             VerticalLayout noSubLayout = createInnerLayout();
@@ -199,7 +198,7 @@ public class TaskCardList extends VerticalLayout {
     }
 
     // ==========================================
-    // HELPER METHODS FOR CLEAN CODE
+    // HELPER METHODS
     // ==========================================
     private VerticalLayout createInnerLayout() {
         VerticalLayout layout = new VerticalLayout();
@@ -209,7 +208,7 @@ public class TaskCardList extends VerticalLayout {
     }
 
     private TaskCard createTaskCard(Task task) {
-        TaskCard card = new TaskCard(task, this.onDelete);
+        TaskCard card = new TaskCard(task, this.onComplete, this.onDelete);
         card.getStyle().set("cursor", "pointer");
         card.addClickListener(click -> card.getUI().ifPresent(ui -> ui.navigate("tasks/" + task.getId())));
         return card;
