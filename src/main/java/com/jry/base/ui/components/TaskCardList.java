@@ -10,13 +10,16 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class TaskCardList extends VerticalLayout {
     private final List<Task> allTasks;
+    private final Consumer<Task> onDelete;
 
-    public TaskCardList(List<Task> allTasks) {
+    public TaskCardList(List<Task> allTasks, Consumer<Task> onDelete) {
         this.allTasks = allTasks;
+        this.onDelete = onDelete; // Save it
         setWidthFull();
         setPadding(false);
         setSpacing(true);
@@ -128,7 +131,7 @@ public class TaskCardList extends VerticalLayout {
                 noDateLayout.add(createTaskCard(task));
             }
 
-            // Pro Tip: I set the last parameter to 'false' so this accordion starts CLOSED.
+            // set the last parameter to 'false' so this accordion starts CLOSED.
             // This acts like an Inbox and prevents your unscheduled tasks from hiding "Today's" tasks!
             add(createDetailsBar("No Due Date", noDateTasks.size(), "#4b5563", "#e5e7eb", noDateLayout, false));
         }
@@ -206,7 +209,7 @@ public class TaskCardList extends VerticalLayout {
     }
 
     private TaskCard createTaskCard(Task task) {
-        TaskCard card = new TaskCard(task);
+        TaskCard card = new TaskCard(task, this.onDelete);
         card.getStyle().set("cursor", "pointer");
         card.addClickListener(click -> card.getUI().ifPresent(ui -> ui.navigate("tasks/" + task.getId())));
         return card;

@@ -37,7 +37,18 @@ public class Tasks extends VerticalLayout implements BeforeEnterObserver {
         ApplicationUser currentUser = userRepo.findByUsername(username).get();
 
         List<Task> allTasksInDatabase = taskRepo.findByUser(currentUser);
-        TaskCardList grid = new TaskCardList(allTasksInDatabase);
+        TaskCardList grid = new TaskCardList(allTasksInDatabase, taskToDelete -> {
+            // 1. Delete it from the database
+            taskRepo.delete(taskToDelete);
+
+            // 2. Show the success banner
+            Notification successNote = Notification.show("Task permanently deleted.");
+            successNote.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            successNote.setPosition(Notification.Position.TOP_CENTER);
+
+            // 3. Refresh the page to remove the card from the screen
+            getUI().ifPresent(ui -> ui.getPage().reload());
+        });
 
         Button addBtn = new Button("New Task");
         addBtn.getElement().setAttribute("style", "cursor: pointer;");
@@ -52,7 +63,7 @@ public class Tasks extends VerticalLayout implements BeforeEnterObserver {
         ComboBox<String> groupByFilter = new ComboBox<>();
         groupByFilter.setItems("Group by Status", "Group by Date", "Group by Subject");
 
-        // --- 1. THE MAGIC: LOAD PREFERENCE FROM BROWSER MEMORY ---
+        //LOAD PREFERENCE FROM BROWSER MEMORY ---
         WebStorage.getItem("task-group-pref", savedPref -> {
             if (savedPref != null && !savedPref.isEmpty()) {
                 groupByFilter.setValue(savedPref);

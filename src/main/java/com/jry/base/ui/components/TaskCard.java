@@ -1,37 +1,45 @@
 package com.jry.base.ui.components;
 
 import com.jry.backend.entities.Task;
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.function.Consumer;
 
 public class TaskCard extends VerticalLayout {
-    public static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("MMM dd yyyy hh:mm a", Locale.US);
+    public static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("EEEE, MMM dd yyyy hh:mm a", Locale.US);
 
-    public TaskCard(Task task) {
+    public TaskCard(Task task, Consumer<Task> onDelete) {
+        // Keeps the trash button anchored to this card
+        this.getStyle().set("position", "relative");
+
+        addClassName("task-card");
+
         // --- 1. DETERMINE CARD TINT & STATUS ---
-        // Treat it as completed if the checkbox is ticked OR if it's past the due date
         boolean isPastDue = task.getDueDate() != null && task.getDueDate().isBefore(LocalDateTime.now());
         boolean isEffectivelyCompleted = task.isCompleted() || isPastDue;
 
-        String cardBackground = "#ffffff"; // Default White
+        String cardBackground = "#ffffff";
         if (isEffectivelyCompleted) {
-            cardBackground = "#f0fdf4"; // Very light green tint
+            cardBackground = "#f0fdf4";
         } else if (task.isUrgent()) {
-            cardBackground = "#fef2f2"; // Very light red tint
+            cardBackground = "#fef2f2";
         }
 
         // --- 2. BASE BOX STYLING ---
         getStyle().set("border", "1px solid #dcdcdc");
         getStyle().set("border-radius", "12px");
         getStyle().set("padding", "14px");
-        getStyle().set("background-color", cardBackground); // Apply our dynamic tint!
+        getStyle().set("background-color", cardBackground);
         getStyle().set("box-shadow", "0 4px 6px rgba(0, 0, 0, 0.1)");
         getStyle().set("transition", "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out");
 
@@ -52,7 +60,6 @@ public class TaskCard extends VerticalLayout {
         HorizontalLayout header = new HorizontalLayout();
         header.setWidthFull();
         header.setJustifyContentMode(JustifyContentMode.END);
-
         header.setMinHeight("28px");
 
         if (task.getSubject() != null && !task.getSubject().isEmpty()) {
@@ -75,21 +82,25 @@ public class TaskCard extends VerticalLayout {
         title.getStyle().set("margin-top", "-8px");
         title.getStyle().set("margin-bottom", "4px");
 
-        // Add the header and title to the card first
+        // FIX: Add padding ONLY to the title so it doesn't overlap the floating button
+        title.getStyle().set("padding-right", "50px");
+
         add(header, title);
 
-        // Only create and add the description if it actually exists!
         if (task.getDescription() != null && !task.getDescription().trim().isEmpty()) {
             Paragraph description = new Paragraph(task.getDescription());
             description.getStyle().set("color", "#666666");
             description.getStyle().set("margin-top", "0");
             description.getStyle().set("margin-bottom", "12px");
-            add(description); // Add it right under the title
+
+            // FIX: Add padding ONLY to the description so it doesn't overlap
+            description.getStyle().set("padding-right", "50px");
+
+            add(description);
         }
 
         // --- 5. CATEGORY BADGE ---
         Span categoryBadge = new Span(task.getCategory() != null ? task.getCategory() : "Personal");
-        // ... (Keep your existing Category styling here) ...
         categoryBadge.getStyle().set("padding", "4px 10px");
         categoryBadge.getStyle().set("border-radius", "12px");
         categoryBadge.getStyle().set("font-size", "12px");
@@ -118,7 +129,6 @@ public class TaskCard extends VerticalLayout {
 
         // --- 6. STATUS BADGE ---
         Span statusBadge = new Span();
-        // ... (Keep your existing Status styling here) ...
         statusBadge.getStyle().set("padding", "4px 10px");
         statusBadge.getStyle().set("border-radius", "12px");
         statusBadge.getStyle().set("font-size", "12px");
@@ -144,16 +154,64 @@ public class TaskCard extends VerticalLayout {
         date.getStyle().set("font-size", "14px");
         date.getStyle().set("color", "#888888");
 
+        isPastDue = task.getDueDate() != null && task.getDueDate().isBefore(LocalDateTime.now());
+
+
+        // --- THE FLOATING TRASH CAN ---
+        if (isPastDue || task.isCompleted()) {
+
+            Icon trashIcon = VaadinIcon.TRASH.create();
+            trashIcon.setSize("24px");
+
+            Button quickDeleteBtn = new Button(trashIcon);
+
+            // Styling (Big, visible, clean)
+            quickDeleteBtn.getStyle().set("background-color", "#e5e7eb");
+            trashIcon.setColor("#4b5563");
+            quickDeleteBtn.getStyle().set("border", "none");
+            quickDeleteBtn.getStyle().set("cursor", "pointer");
+            quickDeleteBtn.getStyle().set("padding", "12px");
+            quickDeleteBtn.getStyle().set("border-radius", "8px");
+
+            // Absolute Positioning: Locked to the middle right edge
+            quickDeleteBtn.getStyle().set("position", "absolute");
+            quickDeleteBtn.getStyle().set("right", "16px");
+            quickDeleteBtn.getStyle().set("top", "50%");
+            quickDeleteBtn.getStyle().set("transform", "translateY(-50%)"); // Perfect vertical center
+            quickDeleteBtn.getStyle().set("z-index", "10");
+
+            // Hover effect
+            quickDeleteBtn.getElement().addEventListener("mouseenter", e -> {
+                quickDeleteBtn.getStyle().set("background-color", "#374151");
+                trashIcon.setColor("#ffffff");
+                quickDeleteBtn.getStyle().set("transition", "all 0.2s ease");
+            });
+            quickDeleteBtn.getElement().addEventListener("mouseleave", e -> {
+                quickDeleteBtn.getStyle().set("background-color", "#e5e7eb");
+                trashIcon.setColor("#4b5563");
+            });
+
+            quickDeleteBtn.addClickListener(e -> {
+                onDelete.accept(task);
+            });
+
+            // Add the button so it floats over the card
+            add(quickDeleteBtn);
+        }
+
         // --- 7. FOOTER LAYOUT ---
-        HorizontalLayout rightBadges = new HorizontalLayout(categoryBadge, statusBadge);
+        HorizontalLayout rightBadges = new HorizontalLayout();
+        rightBadges.setAlignItems(Alignment.CENTER);
         rightBadges.getStyle().set("gap", "8px");
+
+        // Add badges normally (NO trash can here)
+        rightBadges.add(categoryBadge, statusBadge);
 
         HorizontalLayout footer = new HorizontalLayout(date, rightBadges);
         footer.setWidthFull();
         footer.setAlignItems(Alignment.CENTER);
         footer.setJustifyContentMode(JustifyContentMode.BETWEEN);
 
-        // Finally, add the footer to the very bottom!
         add(footer);
     }
 

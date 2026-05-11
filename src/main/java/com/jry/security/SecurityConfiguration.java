@@ -20,6 +20,8 @@ public class SecurityConfiguration {
         http.with(VaadinSecurityConfigurer.vaadin(), configurer -> {
             configurer.loginView(Login.class);
         });
+        http.rememberMe(remember -> remember
+                .key("taskManagerSecretKey").tokenValiditySeconds(86400*14));//key is created to hash cookie seccurely
         return http.build();
     }
 
