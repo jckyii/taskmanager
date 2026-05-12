@@ -3,7 +3,6 @@ package com.jry.base.ui.components;
 import com.jry.backend.entities.Task;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.H3;
-import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
@@ -37,10 +36,10 @@ public class TaskCard extends VerticalLayout {
             cardBackground = "#fff7ed"; // Orange
         }
 
-        // --- 2. DYNAMIC BASE STYLING (Collapsed vs Expanded) ---
+        // --- 2. BASE STYLING (FIX: Uniform padding and height for ALL tasks) ---
         getStyle().set("border", "1px solid #dcdcdc");
         getStyle().set("border-radius", "12px");
-        getStyle().set("padding", isCompleted ? "8px 14px" : "14px");
+        getStyle().set("padding", "14px"); // Fixed padding restored
         getStyle().set("background-color", cardBackground);
         getStyle().set("box-shadow", "0 4px 6px rgba(0, 0, 0, 0.1)");
         getStyle().set("transition", "all 0.2s ease-in-out");
@@ -57,16 +56,13 @@ public class TaskCard extends VerticalLayout {
 
         setWidthFull();
         setSpacing(false);
-
-        if (!isCompleted) {
-            this.setMinHeight("140px");
-        }
+        this.setMinHeight("140px"); // Prevent squishing for ALL tasks
 
         // --- 3. TOP RIGHT SUBJECT PILL ---
         HorizontalLayout header = new HorizontalLayout();
         header.setWidthFull();
         header.setJustifyContentMode(JustifyContentMode.END);
-        header.setMinHeight(isCompleted ? "20px" : "28px");
+        header.setMinHeight("28px"); // Uniform header height
 
         if (task.getSubject() != null && !task.getSubject().isEmpty()) {
             Span subjectPill = new Span(task.getSubject());
@@ -83,32 +79,24 @@ public class TaskCard extends VerticalLayout {
             header.add(subjectPill);
         }
 
-        // --- 4. TEXT FIELDS ---
+        // --- 4. TEXT FIELDS (FIX: Descriptions restored for all tasks) ---
         VerticalLayout topContent = new VerticalLayout();
         topContent.setPadding(false);
         topContent.setSpacing(false);
 
-        if (isCompleted) {
-            H4 compactTitle = new H4(task.getTitle());
-            compactTitle.getStyle().set("margin-top", "-20px");
-            compactTitle.getStyle().set("margin-bottom", "8px");
-            compactTitle.getStyle().set("padding-right", "50px");
-            topContent.add(header, compactTitle);
-        } else {
-            H3 title = new H3(task.getTitle());
-            title.getStyle().set("margin-top", "-8px");
-            title.getStyle().set("margin-bottom", "4px");
-            title.getStyle().set("padding-right", "50px");
-            topContent.add(header, title);
+        H3 title = new H3(task.getTitle());
+        title.getStyle().set("margin-top", "-8px");
+        title.getStyle().set("margin-bottom", "4px");
+        title.getStyle().set("padding-right", "50px");
+        topContent.add(header, title);
 
-            if (task.getDescription() != null && !task.getDescription().trim().isEmpty()) {
-                Paragraph description = new Paragraph(task.getDescription());
-                description.getStyle().set("color", "#666666");
-                description.getStyle().set("margin-top", "0");
-                description.getStyle().set("margin-bottom", "12px");
-                description.getStyle().set("padding-right", "50px");
-                topContent.add(description);
-            }
+        if (task.getDescription() != null && !task.getDescription().trim().isEmpty()) {
+            Paragraph description = new Paragraph(task.getDescription());
+            description.getStyle().set("color", "#666666");
+            description.getStyle().set("margin-top", "0");
+            description.getStyle().set("margin-bottom", "12px");
+            description.getStyle().set("padding-right", "50px");
+            topContent.add(description);
         }
 
         // --- 5. CATEGORY BADGE ---
@@ -150,19 +138,19 @@ public class TaskCard extends VerticalLayout {
         if (isCompleted) {
             statusBadge.setText("Completed");
             statusBadge.getStyle().set("color", "#166534");
-            statusBadge.getStyle().set("background-color", "#dcfce7");
+            statusBadge.getStyle().set("background-color", "#dcfce7"); // Green
         } else if (isPastDue) {
             statusBadge.setText("Overdue");
             statusBadge.getStyle().set("color", "#991b1b");
-            statusBadge.getStyle().set("background-color", "#fecaca");
+            statusBadge.getStyle().set("background-color", "#fecaca"); // Red
         } else if (isUrgent) {
             statusBadge.setText("Urgent");
             statusBadge.getStyle().set("color", "#9a3412");
-            statusBadge.getStyle().set("background-color", "#ffedd5");
+            statusBadge.getStyle().set("background-color", "#ffedd5"); // Orange
         } else {
             statusBadge.setText("Ongoing");
             statusBadge.getStyle().set("color", "#1e3a8a");
-            statusBadge.getStyle().set("background-color", "#dbeafe");
+            statusBadge.getStyle().set("background-color", "#dbeafe"); // Blue
         }
 
         String dateString = task.getDueDate() != null ? task.getDueDate().format(DATE_TIME_FORMATTER) : "No due date";
@@ -170,7 +158,7 @@ public class TaskCard extends VerticalLayout {
         date.getStyle().set("font-size", "14px");
         date.getStyle().set("color", "#888888");
 
-        // --- 7. THE FLOATING BUTTONS ---
+        // --- 7. THE FLOATING BUTTONS (FIX: Click Bubbling Prevented) ---
         Button actionBtn = new Button();
         Icon actionIcon;
 
@@ -193,7 +181,10 @@ public class TaskCard extends VerticalLayout {
                 actionBtn.getStyle().set("border-color", "#d1d5db");
             });
 
-            actionBtn.addClickListener(e -> onComplete.accept(task));
+            // FIX: Stop Propagation so the card doesn't register the click!
+            actionBtn.getElement()
+                    .addEventListener("click", e -> onComplete.accept(task))
+                    .stopPropagation();
 
         } else {
             actionIcon = VaadinIcon.TRASH.create();
@@ -214,7 +205,10 @@ public class TaskCard extends VerticalLayout {
                 actionBtn.getStyle().set("border-color", "#d1d5db");
             });
 
-            actionBtn.addClickListener(e -> onDelete.accept(task));
+            // FIX: Stop Propagation so the card doesn't register the click!
+            actionBtn.getElement()
+                    .addEventListener("click", e -> onDelete.accept(task))
+                    .stopPropagation();
         }
 
         actionBtn.getStyle().set("cursor", "pointer");
@@ -225,7 +219,7 @@ public class TaskCard extends VerticalLayout {
         actionBtn.getStyle().set("top", "47%");
         actionBtn.getStyle().set("transform", "translateY(-50%)");
         actionBtn.getStyle().set("z-index", "10");
-        actionBtn.getStyle().set("transition", "all 0.2s ease");
+        actionBtn.getStyle().set("transitio/n", "all 0.2s ease");
         add(actionBtn);
 
         // --- 8. FOOTER LAYOUT ---
@@ -239,10 +233,7 @@ public class TaskCard extends VerticalLayout {
         footer.setJustifyContentMode(JustifyContentMode.BETWEEN);
 
         add(topContent, footer);
-
-        if (!isCompleted) {
-            expand(topContent);
-        }
+        expand(topContent); // Push footer to the bottom for ALL tasks
     }
 
     private String getContrastTextColor(String hexColor) {

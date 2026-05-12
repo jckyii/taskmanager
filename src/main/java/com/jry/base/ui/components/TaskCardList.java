@@ -25,6 +25,7 @@ public class TaskCardList extends VerticalLayout {
         setWidthFull();
         setPadding(false);
         setSpacing(true);
+        // Default initial load
         updateList("", "All Categories", "All Subjects", "Group by Status");
     }
 
@@ -33,9 +34,10 @@ public class TaskCardList extends VerticalLayout {
     }
 
     private void updateList(String searchTerm, String category, String subject, String groupBy) {
-        removeAll();
+        removeAll(); // Clear the view
         String lowerTerm = (searchTerm == null) ? "" : searchTerm.toLowerCase();
 
+        // 1. First, get ALL tasks that match the search/filters
         List<Task> filteredTasks = allTasks.stream()
                 .filter(task -> {
                     boolean matchesText = true;
@@ -59,72 +61,92 @@ public class TaskCardList extends VerticalLayout {
                     if (subject != null && !subject.equals("All Subjects")) {
                         matchesSubject = task.getSubject() != null && task.getSubject().equals(subject);
                     }
-
                     return matchesText && matchesCategory && matchesSubject;
-                })
-                // --- THE SORTING FIX ---
-                .sorted((t1, t2) -> {
-                    // 1. Force Completed tasks to the very top
-                    if (t1.isCompleted() != t2.isCompleted()) {
-                        return Boolean.compare(t2.isCompleted(), t1.isCompleted());
-                    }
-                    // 2. Otherwise, sort by Due Date chronologically
-                    if (t1.getDueDate() == null && t2.getDueDate() == null) return 0;
-                    if (t1.getDueDate() == null) return 1;
-                    if (t2.getDueDate() == null) return -1;
-                    return t1.getDueDate().compareTo(t2.getDueDate());
                 })
                 .collect(Collectors.toList());
 
+        // 2. SPLIT COMPLETED VS ACTIVE
+        List<Task> completedTasks = new ArrayList<>();
+        List<Task> activeTasks = new ArrayList<>();
+
+        for (Task t : filteredTasks) {
+            if (t.isCompleted()) {
+                completedTasks.add(t);
+            } else {
+                activeTasks.add(t);
+            }
+        }
+
+        // 3. SORT ACTIVE TASKS CHRONOLOGICALLY
+        activeTasks.sort((t1, t2) -> {
+            if (t1.getDueDate() == null && t2.getDueDate() == null) return 0;
+            if (t1.getDueDate() == null) return 1;
+            if (t2.getDueDate() == null) return -1;
+            return t1.getDueDate().compareTo(t2.getDueDate());
+        });
+
+        // 4. ALWAYS RENDER COMPLETED TASKS AT THE ABSOLUTE TOP (COLLAPSED)
+        if (!completedTasks.isEmpty()) {
+            VerticalLayout completedLayout = createInnerLayout();
+            // Sort completed tasks so the most recently completed are near the top
+            for (Task task : completedTasks) {
+                completedLayout.add(createTaskCard(task));
+            }
+            // FALSE means it will start collapsed!
+            add(createDetailsBar("Completed", completedTasks.size(), "#166534", "#dcfce7", completedLayout, false));
+        }
+
+        // 5. RENDER THE REST OF THE GROUPS BASED ON USER CHOICE
+        if (activeTasks.isEmpty()) {
+            return; // If there are no active tasks, stop drawing.
+        }
+
         if ("Group by Date".equals(groupBy)) {
-            renderGroupByDate(filteredTasks);
+            renderGroupByDate(activeTasks);
         } else if ("Group by Subject".equals(groupBy)) {
-            renderGroupBySubject(filteredTasks);
+            renderGroupBySubject(activeTasks);
         } else {
-            renderGroupByStatus(filteredTasks);
+            renderGroupByStatus(activeTasks);
         }
     }
 
     // ==========================================
     // VIEW 1: GROUP BY STATUS
     // ==========================================
-    private void renderGroupByStatus(List<Task> tasks) {
-        VerticalLayout completedLayout = createInnerLayout();
+    private void renderGroupByStatus(List<Task> activeTasks) {
         VerticalLayout urgentLayout = createInnerLayout();
         VerticalLayout ongoingLayout = createInnerLayout();
 
-        int completedCount = 0, urgentCount = 0, ongoingCount = 0;
+        int urgentCount = 0, ongoingCount = 0;
 
-        for (Task task : tasks) {
-            TaskCard card = createTaskCard(task);
-            boolean isPastDue = task.getDueDate() != null && task.getDueDate().isBefore(LocalDateTime.now()) && !task.isCompleted();
+        for (Task task : activeTasks) {
+            boolean isPastDue = task.getDueDate() != null && task.getDueDate().isBefore(LocalDateTime.now());
 
-            if (task.isCompleted()) {
-                completedLayout.add(card);
-                completedCount++;
-            } else if (task.isUrgent() || isPastDue) {
-                // Grouping Urgent and Overdue together for visual hierarchy
-                urgentLayout.add(card);
+            if (task.isUrgent() || isPastDue) {
+                urgentLayout.add(createTaskCard(task));
                 urgentCount++;
             } else {
-                ongoingLayout.add(card);
+                ongoingLayout.add(createTaskCard(task));
                 ongoingCount++;
             }
         }
 
-        add(createDetailsBar("Completed", completedCount, "#166534", "#dcfce7", completedLayout, false));
-        add(createDetailsBar("Urgent / Overdue", urgentCount, "#991b1b", "#fee2e2", urgentLayout, true));
-        add(createDetailsBar("Ongoing", ongoingCount, "#1e3a8a", "#dbeafe", ongoingLayout, true));
+        if (urgentCount > 0) {
+            add(createDetailsBar("Urgent / Overdue", urgentCount, "#991b1b", "#fee2e2", urgentLayout, true));
+        }
+        if (ongoingCount > 0) {
+            add(createDetailsBar("Ongoing", ongoingCount, "#1e3a8a", "#dbeafe", ongoingLayout, true));
+        }
     }
 
     // ==========================================
-    // VIEW 2: GROUP BY DATE
+    // VIEW 2: GROUP BY DATE (Strict Timeline Fix)
     // ==========================================
-    private void renderGroupByDate(List<Task> tasks) {
+    private void renderGroupByDate(List<Task> activeTasks) {
         Map<LocalDate, List<Task>> tasksByDate = new HashMap<>();
         List<Task> noDateTasks = new ArrayList<>();
 
-        for (Task task : tasks) {
+        for (Task task : activeTasks) {
             if (task.getDueDate() != null) {
                 LocalDate date = task.getDueDate().toLocalDate();
                 tasksByDate.computeIfAbsent(date, k -> new ArrayList<>()).add(task);
@@ -133,6 +155,7 @@ public class TaskCardList extends VerticalLayout {
             }
         }
 
+        // Draw "No Due Date" first so it doesn't get buried
         if (!noDateTasks.isEmpty()) {
             VerticalLayout noDateLayout = createInnerLayout();
             for (Task task : noDateTasks) {
@@ -141,12 +164,18 @@ public class TaskCardList extends VerticalLayout {
             add(createDetailsBar("No Due Date", noDateTasks.size(), "#4b5563", "#e5e7eb", noDateLayout, false));
         }
 
+        // STRICT CHRONOLOGICAL SORTING FIX
         List<LocalDate> sortedDates = new ArrayList<>(tasksByDate.keySet());
-        Collections.sort(sortedDates);
+        sortedDates.sort(Comparator.naturalOrder()); // Guarantees past -> present -> future
+
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE, MMM dd, yyyy");
 
         for (LocalDate date : sortedDates) {
             List<Task> tasksForDay = tasksByDate.get(date);
+
+            // Secondary sort: Sort by exact time within that specific day
+            tasksForDay.sort(Comparator.comparing(Task::getDueDate));
+
             VerticalLayout dayLayout = createInnerLayout();
             for (Task task : tasksForDay) {
                 dayLayout.add(createTaskCard(task));
@@ -163,7 +192,7 @@ public class TaskCardList extends VerticalLayout {
     // ==========================================
     // VIEW 3: GROUP BY SUBJECT
     // ==========================================
-    private void renderGroupBySubject(List<Task> filteredTasks) {
+    private void renderGroupBySubject(List<Task> activeTasks) {
         List<String> allKnownSubjects = allTasks.stream()
                 .map(Task::getSubject)
                 .filter(s -> s != null && !s.isEmpty())
@@ -175,22 +204,25 @@ public class TaskCardList extends VerticalLayout {
             VerticalLayout subjectLayout = createInnerLayout();
             int taskCount = 0;
 
-            for (Task task : filteredTasks) {
+            for (Task task : activeTasks) {
                 if (subject.equals(task.getSubject())) {
                     subjectLayout.add(createTaskCard(task));
                     taskCount++;
                 }
             }
 
-            String bgColor = "#f3f4f6";
-            Optional<Task> firstTask = allTasks.stream().filter(t -> subject.equals(t.getSubject()) && t.getSubjectColor() != null).findFirst();
-            if (firstTask.isPresent()) bgColor = firstTask.get().getSubjectColor();
+            // Only draw the accordion if there are actually active tasks for it
+            if (taskCount > 0) {
+                String bgColor = "#f3f4f6";
+                Optional<Task> firstTask = allTasks.stream().filter(t -> subject.equals(t.getSubject()) && t.getSubjectColor() != null).findFirst();
+                if (firstTask.isPresent()) bgColor = firstTask.get().getSubjectColor();
 
-            add(createDetailsBar(subject, taskCount, "#111827", bgColor, subjectLayout, true));
+                add(createDetailsBar(subject, taskCount, "#111827", bgColor, subjectLayout, true));
+            }
         }
 
-        List<Task> noSubjectTasks = filteredTasks.stream().filter(t -> t.getSubject() == null || t.getSubject().isEmpty()).collect(Collectors.toList());
-        if(!noSubjectTasks.isEmpty()) {
+        List<Task> noSubjectTasks = activeTasks.stream().filter(t -> t.getSubject() == null || t.getSubject().isEmpty()).collect(Collectors.toList());
+        if (!noSubjectTasks.isEmpty()) {
             VerticalLayout noSubLayout = createInnerLayout();
             for(Task t : noSubjectTasks) noSubLayout.add(createTaskCard(t));
             add(createDetailsBar("No Subject", noSubjectTasks.size(), "#4b5563", "#e5e7eb", noSubLayout, true));
