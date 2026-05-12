@@ -7,6 +7,7 @@ import com.jry.backend.entities.UserRepository;
 import com.jry.base.ui.components.TaskCardList;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
@@ -54,7 +55,7 @@ public class Tasks extends VerticalLayout {
         String username = authContext.getAuthenticatedUser(UserDetails.class).get().getUsername();
         ApplicationUser currentUser = userRepo.findByUsername(username).get();
 
-        // --- 3. HEADER LAYOUT ---
+        // --- 3. HEADER LAYOUT (WITH FIXED LOGOUT BUTTON) ---
         H2 pageTitle = new H2("My Tasks");
         pageTitle.getStyle().set("margin-top", "0");
 
@@ -63,7 +64,31 @@ public class Tasks extends VerticalLayout {
         });
         newTaskBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        HorizontalLayout header = new HorizontalLayout(pageTitle, newTaskBtn);
+        // FIX: Removed "Tertiary" so it actually looks like a framed button.
+        // Added LUMO_ERROR so it has a nice, clean red text/border to warn users it's an exit action.
+        Button logoutBtn = new Button("Sign Out", VaadinIcon.SIGN_OUT.create());
+        logoutBtn.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        logoutBtn.getStyle().set("cursor", "pointer"); // Shows the clicky-finger on hover
+
+        logoutBtn.addClickListener(e -> {
+            ConfirmDialog dialog = new ConfirmDialog();
+            dialog.setHeader("Sign Out");
+            dialog.setText("Are you sure you want to log out of your account?");
+            dialog.setCancelable(true);
+            dialog.setCancelText("Cancel");
+            dialog.setConfirmText("Sign Out");
+            dialog.setConfirmButtonTheme("error primary");
+            dialog.addConfirmListener(event -> {
+                authContext.logout();
+            });
+            dialog.open();
+        });
+
+        HorizontalLayout headerButtons = new HorizontalLayout(newTaskBtn, logoutBtn);
+        headerButtons.setAlignItems(Alignment.CENTER);
+        headerButtons.getStyle().set("gap", "12px"); // Adds a little breathing room between the buttons
+
+        HorizontalLayout header = new HorizontalLayout(pageTitle, headerButtons);
         header.setWidthFull();
         header.setAlignItems(Alignment.CENTER);
         header.setJustifyContentMode(JustifyContentMode.BETWEEN);
@@ -114,15 +139,13 @@ public class Tasks extends VerticalLayout {
         Select<String> groupByFilter = new Select<>();
         groupByFilter.setItems("Group by Status", "Group by Date", "Group by Subject");
 
-        // MEMORY FIX: Check if we have a saved grouping state in the session!
         String savedGroupBy = (String) VaadinSession.getCurrent().getAttribute("savedGroupBy");
         if (savedGroupBy != null) {
             groupByFilter.setValue(savedGroupBy);
         } else {
-            groupByFilter.setValue("Group by Status"); // Default if nothing is saved
+            groupByFilter.setValue("Group by Status");
         }
 
-        // LAYOUT FIX: Reordered to match your request (Search -> Group By -> Category -> Subject)
         HorizontalLayout toolbar = new HorizontalLayout(searchField, groupByFilter, categoryFilter, subjectFilter);
         toolbar.setWidthFull();
         toolbar.getStyle().set("margin-top", "16px");
@@ -133,13 +156,11 @@ public class Tasks extends VerticalLayout {
         categoryFilter.addValueChangeListener(e -> grid.filter(searchField.getValue(), categoryFilter.getValue(), subjectFilter.getValue(), groupByFilter.getValue()));
         subjectFilter.addValueChangeListener(e -> grid.filter(searchField.getValue(), categoryFilter.getValue(), subjectFilter.getValue(), groupByFilter.getValue()));
 
-        // MEMORY FIX: When grouping changes, save the new choice to the session!
         groupByFilter.addValueChangeListener(e -> {
             VaadinSession.getCurrent().setAttribute("savedGroupBy", e.getValue());
             grid.filter(searchField.getValue(), categoryFilter.getValue(), subjectFilter.getValue(), groupByFilter.getValue());
         });
 
-        // Force the grid to filter itself once immediately on load so the saved grouping applies visually right away
         grid.filter(searchField.getValue(), categoryFilter.getValue(), subjectFilter.getValue(), groupByFilter.getValue());
 
         // --- 8. FINAL ASSEMBLY ---
