@@ -1,7 +1,9 @@
 package com.jry.base.ui.views;
 
+import com.jry.backend.entities.ApplicationUser;
 import com.jry.backend.entities.Task;
 import com.jry.backend.entities.TaskRepository;
+import com.jry.backend.entities.UserRepository;
 import com.jry.base.ui.components.TaskForm;
 import com.jry.base.ui.components.ViewToolbar;
 import com.vaadin.flow.component.button.Button;
@@ -12,9 +14,15 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.BeforeEvent;
 import com.vaadin.flow.router.HasUrlParameter;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.spring.security.AuthenticationContext;
 import jakarta.annotation.security.PermitAll;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
+import org.springframework.security.core.userdetails.UserDetails;
 
-@Route("tasks") // With HasUrlParameter, this makes the URL "localhost:8080/tasks/1"
+import java.util.List;
+
+@Route("tasks")
 @PermitAll
 public class TaskDetails extends VerticalLayout implements HasUrlParameter<Long> {
     private final TaskRepository taskRepo;
@@ -24,11 +32,36 @@ public class TaskDetails extends VerticalLayout implements HasUrlParameter<Long>
     private Button editBtn = new Button("Edit");
     private Button deleteBtn = new Button("Delete");
 
-    public TaskDetails(TaskRepository taskRepo) {
+    public TaskDetails(TaskRepository taskRepo, UserRepository userRepo, AuthenticationContext authContext) {
+
+        String username = authContext.getAuthenticatedUser(UserDetails.class).get().getUsername();
+        ApplicationUser currentUser = userRepo.findByUsername(username).get();
         this.taskRepo = taskRepo;
 
         taskForm.setEditable(false);
         taskForm.addSaveListener(this::saveTask);
+
+        taskForm.addDeleteSubjectListener(subjectToDelete -> {
+            List<Task> allUserTasks = taskRepo.findByUser(currentUser);
+
+            boolean changesMade = false;
+            for (Task t : allUserTasks) {
+                if (subjectToDelete.equals(t.getSubject())) {
+                    t.setSubject(null);
+                    taskRepo.save(t);
+                    changesMade = true;
+                }
+            }
+
+            if (changesMade) {
+                Notification success = Notification.show("Subject '" + subjectToDelete + "' deleted from all tasks.");
+                success.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                success.setPosition(Notification.Position.TOP_CENTER);
+
+                getUI().ifPresent(ui -> ui.getPage().reload());
+            }
+        });
+
         taskForm.addCancelListener(this::cancelEdit);
 
         configureLayout();
@@ -38,7 +71,6 @@ public class TaskDetails extends VerticalLayout implements HasUrlParameter<Long>
     private void configureLayout() {
         Button backBtn = new Button("Back to All Tasks");
         backBtn.addClickListener(click -> {
-            // Navigate back to the root dashboard
             getUI().ifPresent(ui -> ui.navigate(""));
         });
         ViewToolbar toolbar = new ViewToolbar("Task Details", backBtn);
@@ -47,16 +79,13 @@ public class TaskDetails extends VerticalLayout implements HasUrlParameter<Long>
     }
 
     private void configureButtons() {
-        // Style the buttons
         editBtn.addThemeVariants(ButtonVariant.PRIMARY);
         deleteBtn.addThemeVariants(ButtonVariant.ERROR);
 
-        // Logic: Unlock the form when Edit is clicked
         editBtn.addClickListener(click -> {
             setEditable(true);
         });
 
-        // Logic: Show the confirmation pop-up when Delete is clicked
         deleteBtn.addClickListener(click -> {
             ConfirmDialog confirmDialog = new ConfirmDialog();
             confirmDialog.setHeader("Delete Task?");
@@ -76,15 +105,12 @@ public class TaskDetails extends VerticalLayout implements HasUrlParameter<Long>
                     task = t;
                     taskForm.setTask(task);
                 },
-                // Forward back to dashboard if someone types an invalid ID in the URL
                 () -> beforeEvent.forwardTo("")
         );
     }
 
     private void setEditable(boolean isEditing) {
         taskForm.setEditable(isEditing);
-
-        // turn off edit and delete buttons when I am editing
         editBtn.setEnabled(!isEditing);
         editBtn.setVisible(!isEditing);
         deleteBtn.setEnabled(!isEditing);
@@ -96,14 +122,32 @@ public class TaskDetails extends VerticalLayout implements HasUrlParameter<Long>
         taskForm.resetForm();
     }
 
+    // --- UPDATED SAVE WITH BANNERS ---
     private void saveTask(Task task) {
         taskRepo.save(task);
+
+        if (task.isCompleted()) {
+            Notification completeBanner = Notification.show("Great job! Task completed. 🎉");
+            completeBanner.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            completeBanner.setPosition(Notification.Position.TOP_CENTER);
+        } else {
+            Notification updateBanner = Notification.show("Task updated successfully.");
+            updateBanner.addThemeVariants(NotificationVariant.LUMO_PRIMARY);
+            updateBanner.setPosition(Notification.Position.TOP_CENTER);
+        }
+
         setEditable(false);
         getUI().ifPresent(ui -> ui.navigate(""));
     }
 
+    // --- UPDATED DELETE WITH BANNERS ---
     private void deleteTask(Task task) {
         taskRepo.delete(task);
+
+        Notification deletedBanner = Notification.show("Task permanently deleted.");
+        deletedBanner.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        deletedBanner.setPosition(Notification.Position.TOP_CENTER);
+
         getUI().ifPresent(ui -> ui.navigate(""));
     }
 }
