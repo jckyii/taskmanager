@@ -1,5 +1,10 @@
 package com.jry.base.ui.components;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+import java.util.function.Consumer;
+
 import com.jry.backend.entities.Task;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.H3;
@@ -9,11 +14,6 @@ import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Locale;
-import java.util.function.Consumer;
 
 public class TaskCard extends VerticalLayout {
     public static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("EEEE, MMM dd yyyy hh:mm a", Locale.US);
@@ -36,10 +36,10 @@ public class TaskCard extends VerticalLayout {
             cardBackground = "#fff7ed"; // Orange
         }
 
-        // --- 2. BASE STYLING (FIX: Uniform padding and height for ALL tasks) ---
+        // --- 2. BASE STYLING ---
         getStyle().set("border", "1px solid #dcdcdc");
         getStyle().set("border-radius", "12px");
-        getStyle().set("padding", "14px"); // Fixed padding restored
+        getStyle().set("padding", "14px"); 
         getStyle().set("background-color", cardBackground);
         getStyle().set("box-shadow", "0 4px 6px rgba(0, 0, 0, 0.1)");
         getStyle().set("transition", "all 0.2s ease-in-out");
@@ -56,13 +56,13 @@ public class TaskCard extends VerticalLayout {
 
         setWidthFull();
         setSpacing(false);
-        this.setMinHeight("140px"); // Prevent squishing for ALL tasks
+        this.setMinHeight("140px"); 
 
         // --- 3. TOP RIGHT SUBJECT PILL ---
         HorizontalLayout header = new HorizontalLayout();
         header.setWidthFull();
         header.setJustifyContentMode(JustifyContentMode.END);
-        header.setMinHeight("28px"); // Uniform header height
+        header.setMinHeight("28px"); 
 
         if (task.getSubject() != null && !task.getSubject().isEmpty()) {
             Span subjectPill = new Span(task.getSubject());
@@ -79,7 +79,7 @@ public class TaskCard extends VerticalLayout {
             header.add(subjectPill);
         }
 
-        // --- 4. TEXT FIELDS (FIX: Descriptions restored for all tasks) ---
+        // --- 4. TEXT FIELDS ---
         VerticalLayout topContent = new VerticalLayout();
         topContent.setPadding(false);
         topContent.setSpacing(false);
@@ -89,7 +89,7 @@ public class TaskCard extends VerticalLayout {
         title.getStyle().set("margin-bottom", "4px");
         title.getStyle().set("padding-right", "50px");
         topContent.add(header, title);
-
+        
         if (task.getDescription() != null && !task.getDescription().trim().isEmpty()) {
             Paragraph description = new Paragraph(task.getDescription());
             description.getStyle().set("color", "#666666");
@@ -138,19 +138,19 @@ public class TaskCard extends VerticalLayout {
         if (isCompleted) {
             statusBadge.setText("Completed");
             statusBadge.getStyle().set("color", "#166534");
-            statusBadge.getStyle().set("background-color", "#dcfce7"); // Green
+            statusBadge.getStyle().set("background-color", "#dcfce7");
         } else if (isPastDue) {
             statusBadge.setText("Overdue");
             statusBadge.getStyle().set("color", "#991b1b");
-            statusBadge.getStyle().set("background-color", "#fecaca"); // Red
+            statusBadge.getStyle().set("background-color", "#fecaca");
         } else if (isUrgent) {
             statusBadge.setText("Urgent");
             statusBadge.getStyle().set("color", "#9a3412");
-            statusBadge.getStyle().set("background-color", "#ffedd5"); // Orange
+            statusBadge.getStyle().set("background-color", "#ffedd5");
         } else {
             statusBadge.setText("Ongoing");
             statusBadge.getStyle().set("color", "#1e3a8a");
-            statusBadge.getStyle().set("background-color", "#dbeafe"); // Blue
+            statusBadge.getStyle().set("background-color", "#dbeafe");
         }
 
         String dateString = task.getDueDate() != null ? task.getDueDate().format(DATE_TIME_FORMATTER) : "No due date";
@@ -158,7 +158,7 @@ public class TaskCard extends VerticalLayout {
         date.getStyle().set("font-size", "14px");
         date.getStyle().set("color", "#888888");
 
-        // --- 7. THE FLOATING BUTTONS (FIX: Click Bubbling Prevented) ---
+        // --- 7. THE FLOATING BUTTONS (WITH NEW TOOLTIPS) ---
         Button actionBtn = new Button();
         Icon actionIcon;
 
@@ -169,9 +169,12 @@ public class TaskCard extends VerticalLayout {
             actionBtn.getStyle().set("background-color", "#e5e7eb");
             actionIcon.setColor("#4b5563");
             actionBtn.getStyle().set("border", "1px solid #d1d5db");
+            
+            // ---> THE NEW CHECKMARK TOOLTIP <---
+            actionBtn.setTooltipText("Mark as Completed");
 
             actionBtn.getElement().addEventListener("mouseenter", e -> {
-                actionBtn.getStyle().set("background-color", "#22c55e");
+                actionBtn.getStyle().set("background-color", "#22c55e"); 
                 actionIcon.setColor("#ffffff");
                 actionBtn.getStyle().set("border-color", "#22c55e");
             });
@@ -181,10 +184,8 @@ public class TaskCard extends VerticalLayout {
                 actionBtn.getStyle().set("border-color", "#d1d5db");
             });
 
-            // FIX: Stop Propagation so the card doesn't register the click!
-            actionBtn.getElement()
-                    .addEventListener("click", e -> onComplete.accept(task))
-                    .stopPropagation();
+            actionBtn.addClickListener(e -> onComplete.accept(task));
+            actionBtn.getElement().addEventListener("click", ignore -> {}).stopPropagation();
 
         } else {
             actionIcon = VaadinIcon.TRASH.create();
@@ -193,9 +194,12 @@ public class TaskCard extends VerticalLayout {
             actionBtn.getStyle().set("background-color", "#e5e7eb");
             actionIcon.setColor("#4b5563");
             actionBtn.getStyle().set("border", "1px solid #d1d5db");
+            
+            // ---> THE NEW TRASH CAN TOOLTIP <---
+            actionBtn.setTooltipText("Permanently Delete Task");
 
             actionBtn.getElement().addEventListener("mouseenter", e -> {
-                actionBtn.getStyle().set("background-color", "#ef4444");
+                actionBtn.getStyle().set("background-color", "#ef4444"); 
                 actionIcon.setColor("#ffffff");
                 actionBtn.getStyle().set("border-color", "#ef4444");
             });
@@ -205,10 +209,8 @@ public class TaskCard extends VerticalLayout {
                 actionBtn.getStyle().set("border-color", "#d1d5db");
             });
 
-            // FIX: Stop Propagation so the card doesn't register the click!
-            actionBtn.getElement()
-                    .addEventListener("click", e -> onDelete.accept(task))
-                    .stopPropagation();
+            actionBtn.addClickListener(e -> onDelete.accept(task));
+            actionBtn.getElement().addEventListener("click", ignore -> {}).stopPropagation();
         }
 
         actionBtn.getStyle().set("cursor", "pointer");
@@ -219,7 +221,7 @@ public class TaskCard extends VerticalLayout {
         actionBtn.getStyle().set("top", "47%");
         actionBtn.getStyle().set("transform", "translateY(-50%)");
         actionBtn.getStyle().set("z-index", "10");
-        actionBtn.getStyle().set("transitio/n", "all 0.2s ease");
+        actionBtn.getStyle().set("transition", "all 0.2s ease");
         add(actionBtn);
 
         // --- 8. FOOTER LAYOUT ---
@@ -233,7 +235,7 @@ public class TaskCard extends VerticalLayout {
         footer.setJustifyContentMode(JustifyContentMode.BETWEEN);
 
         add(topContent, footer);
-        expand(topContent); // Push footer to the bottom for ALL tasks
+        expand(topContent);
     }
 
     private String getContrastTextColor(String hexColor) {

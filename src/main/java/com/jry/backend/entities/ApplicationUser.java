@@ -1,16 +1,18 @@
 package com.jry.backend.entities;
 
-import jakarta.persistence.*;
-import jakarta.annotation.Nonnull;
+import java.util.Collection;
+import java.util.List;
+
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
+import jakarta.annotation.Nonnull;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "app_users")
@@ -20,6 +22,9 @@ public class ApplicationUser implements UserDetails {
     private Long id;
 
     @Column(unique = true, nullable = false)
+    private String email;
+
+    @Column(nullable = false)//doesnt need to be true if emails are unique and required
     private String username;
 
     @Column(nullable = false)
@@ -31,6 +36,7 @@ public class ApplicationUser implements UserDetails {
     public ApplicationUser(String username, String password) {
         this.username = username;
         this.password = password;
+        this.email = null; // Set email to null by default, it will be set later when creating the user
     }
 
     public Long getId() { return id; }
@@ -50,6 +56,18 @@ public class ApplicationUser implements UserDetails {
 
     @Override
     public @Nonnull String getUsername() {
-        return username;
+        return email; // Return email as the username for authentication
+    }
+
+    public String getDisplayName() {
+        return this.username;
+    }
+
+    public String getEmail() { 
+        return email; 
+    }
+    
+    public void setEmail(String email) { 
+        this.email = email; 
     }
 }

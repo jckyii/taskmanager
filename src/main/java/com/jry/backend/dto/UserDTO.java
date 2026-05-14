@@ -9,6 +9,10 @@ public class UserDTO {
     @Size(min = 4, max = 30, message = "Username must be between 4 and 30 characters")
     private String username;
 
+    @NotBlank(message = "Email is required")
+    @Pattern(regexp = "^[A-Za-z0-9+_.-]+@(.+)$", message = "Invalid email format")
+    private String email;
+
     @NotBlank(message = "Password is required")
     @Size(min = 8, message = "Password must be at least 8 characters long")
     @Pattern(regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!]).*$",
@@ -32,4 +36,7 @@ public class UserDTO {
 
     public void setConfirmPassword(String confirmPassword) { this.confirmPassword = confirmPassword; }
 
+    public String getEmail() { return email; }
+
+    public void setEmail(String email) { this.email = email; }
 }

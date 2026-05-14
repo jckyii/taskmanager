@@ -1,5 +1,10 @@
 package com.jry.base.ui.views;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.security.core.userdetails.UserDetails;
+
 import com.jry.backend.entities.ApplicationUser;
 import com.jry.backend.entities.Task;
 import com.jry.backend.entities.TaskRepository;
@@ -21,11 +26,8 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.spring.security.AuthenticationContext;
-import jakarta.annotation.security.PermitAll;
-import org.springframework.security.core.userdetails.UserDetails;
 
-import java.util.ArrayList;
-import java.util.List;
+import jakarta.annotation.security.PermitAll;
 
 @PermitAll
 @Route("")
@@ -52,11 +54,11 @@ public class Tasks extends VerticalLayout {
         }
 
         // --- 2. GET THE LOGGED IN USER ---
-        String username = authContext.getAuthenticatedUser(UserDetails.class).get().getUsername();
-        ApplicationUser currentUser = userRepo.findByUsername(username).get();
+        String userEmail = authContext.getAuthenticatedUser(UserDetails.class).get().getUsername();
+        ApplicationUser currentUser = userRepo.findByEmail(userEmail).get();
 
         // --- 3. HEADER LAYOUT (WITH FIXED LOGOUT BUTTON) ---
-        H2 pageTitle = new H2("My Tasks");
+        H2 pageTitle = new H2("Welcome, " + currentUser.getDisplayName());
         pageTitle.getStyle().set("margin-top", "0");
 
         Button newTaskBtn = new Button("New Task", e -> {
