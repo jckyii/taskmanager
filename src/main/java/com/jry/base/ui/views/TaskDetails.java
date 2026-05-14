@@ -1,5 +1,9 @@
 package com.jry.base.ui.views;
 
+import java.util.List;
+
+import org.springframework.security.core.userdetails.UserDetails;
+
 import com.jry.backend.entities.ApplicationUser;
 import com.jry.backend.entities.Task;
 import com.jry.backend.entities.TaskRepository;
@@ -9,18 +13,16 @@ import com.jry.base.ui.components.ViewToolbar;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.BeforeEvent;
 import com.vaadin.flow.router.HasUrlParameter;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.spring.security.AuthenticationContext;
-import jakarta.annotation.security.PermitAll;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
-import org.springframework.security.core.userdetails.UserDetails;
 
-import java.util.List;
+import jakarta.annotation.security.PermitAll;
 
 @Route("tasks")
 @PermitAll
@@ -31,11 +33,14 @@ public class TaskDetails extends VerticalLayout implements HasUrlParameter<Long>
     private final TaskForm taskForm = new TaskForm();
     private Button editBtn = new Button("Edit");
     private Button deleteBtn = new Button("Delete");
+    private final ApplicationUser currentUser;
 
     public TaskDetails(TaskRepository taskRepo, UserRepository userRepo, AuthenticationContext authContext) {
 
-        String username = authContext.getAuthenticatedUser(UserDetails.class).get().getUsername();
-        ApplicationUser currentUser = userRepo.findByUsername(username).get();
+        String userEmail = authContext.getAuthenticatedUser(UserDetails.class).get().getUsername();
+        this.currentUser = userRepo.findByEmail(userEmail).get();
+
+        
         this.taskRepo = taskRepo;
 
         taskForm.setEditable(false);
