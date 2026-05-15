@@ -1,5 +1,8 @@
 package com.jry.base.ui.views;
 
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.springframework.security.core.userdetails.UserDetails;
 
 import com.jry.backend.entities.ApplicationUser;
@@ -24,6 +27,8 @@ public class NewTask extends VerticalLayout {
     private final Task task = new Task();
     private final TaskForm taskForm = new TaskForm();
     private final Button backBtn = new Button("Back to All Tasks", VaadinIcon.ARROW_LEFT.create());
+    
+
 
     public NewTask(TaskRepository taskRepo, UserRepository userRepo, AuthenticationContext authContext) {
         this.taskRepo = taskRepo;
@@ -32,7 +37,18 @@ public class NewTask extends VerticalLayout {
         String userEmail = authContext.getAuthenticatedUser(UserDetails.class).get().getUsername();
         this.currentUser = userRepo.findByEmail(userEmail).get();
 
+        //package existing subjects into a map to pass to the form for dropdown population
+        Map<String, String> existingSubjectsMap = taskRepo.findByUser(currentUser).stream()
+                .filter(t -> t.getSubject() != null && !t.getSubject().isEmpty())
+                .collect(Collectors.toMap(
+                        Task::getSubject,
+                        t -> t.getSubjectColor() != null ? t.getSubjectColor() : "#e5e7eb", // Default to grey if missing
+                        (color1, color2) -> color1 // If duplicate subjects exist, keep the first color
+                ));
+
         taskForm.setTask(new Task());
+        //pass map into form to populate subject dropdown with existing subjects and their colors
+        taskForm.setExistingSubjects(existingSubjectsMap);
         taskForm.addSaveListener(this::saveTask);
         taskForm.addCancelListener(() -> getUI().ifPresent(ui -> ui.navigate("")));
 

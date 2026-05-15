@@ -1,25 +1,5 @@
 package com.jry.base.ui.components;
 
-import com.jry.backend.entities.Task;
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.checkbox.Checkbox;
-import com.vaadin.flow.component.datepicker.DatePicker;
-import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.formlayout.FormLayout;
-import com.vaadin.flow.component.html.Input;
-import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.select.Select;
-import com.vaadin.flow.component.textfield.TextArea;
-import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.component.timepicker.TimePicker;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
-import com.vaadin.flow.data.binder.Binder;
-
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -27,6 +7,26 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+
+import com.jry.backend.entities.Task;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
+import com.vaadin.flow.component.datepicker.DatePicker;
+import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.html.Input;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.select.Select;
+import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.timepicker.TimePicker;
+import com.vaadin.flow.data.binder.Binder;
 
 public class TaskForm extends VerticalLayout {
     private Task task;
@@ -39,8 +39,10 @@ public class TaskForm extends VerticalLayout {
     private final DatePicker dueDatePicker = new DatePicker("Due date");
     private final TimePicker dueTimePicker = new TimePicker("Time (optional)");
 
-    // --- THE NEW CHECKBOX ---
     private final Checkbox completedCheckbox = new Checkbox("Mark as Completed");
+
+    // NEW: Moved subjectSelect to the top so other methods can access it!
+    private final Select<String> subjectSelect = new Select<>();
 
     private Consumer<Task> onSave;
     private Runnable onCancel;
@@ -60,17 +62,16 @@ public class TaskForm extends VerticalLayout {
         categorySelect.setLabel("Category");
         categorySelect.setItems("Work", "School", "Home", "Casual", "Uncategorized");
 
-        Select<String> subjectSelect = new Select<>();
         subjectSelect.setLabel("Subject");
         subjectSelect.setEmptySelectionAllowed(true);
         subjectSelect.setEmptySelectionCaption("No Subject");
 
-        updateSelectItems(subjectSelect);
+        updateSelectItems();
 
         subjectSelect.addValueChangeListener(event -> {
             String selected = event.getValue();
             if (ADD_NEW_OPTION.equals(selected)) {
-                openNewSubjectDialog(subjectSelect, event.getOldValue());
+                openNewSubjectDialog(event.getOldValue());
             } else if (selected != null && subjectColorMap.containsKey(selected) && this.task != null) {
                 this.task.setSubjectColor(subjectColorMap.get(selected));
             }
@@ -92,7 +93,7 @@ public class TaskForm extends VerticalLayout {
                 dialog.addConfirmListener(event -> {
                     subjectColorMap.remove(selected);
                     subjectSelect.clear();
-                    updateSelectItems(subjectSelect);
+                    updateSelectItems();
                     if (onDeleteSubject != null) {
                         onDeleteSubject.accept(selected);
                     }
@@ -113,7 +114,6 @@ public class TaskForm extends VerticalLayout {
         dueDatePicker.setWidth("50%");
         dueTimePicker.setWidth("50%");
 
-        // Bind the new checkbox to the Task entity
         binder.bind(completedCheckbox, Task::isCompleted, Task::setCompleted);
         binder.forField(title).asRequired("Please enter a title").bind(Task::getTitle, Task::setTitle);
         binder.bind(description, Task::getDescription, Task::setDescription);
@@ -122,20 +122,27 @@ public class TaskForm extends VerticalLayout {
 
         formLayout.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
 
-        // Add the checkbox to the layout
         formLayout.add(completedCheckbox, title, categorySelect, subjectLayout, description, dateLayout);
 
         configureButtons();
         add(formLayout, new HorizontalLayout(saveBtn, cancelBtn));
     }
 
-    private void updateSelectItems(Select<String> select) {
-        List<String> currentItems = new ArrayList<>(subjectColorMap.keySet());
-        currentItems.add(ADD_NEW_OPTION);
-        select.setItems(currentItems);
+    // --- NEW METHOD: Merges database subjects with your hardcoded ones! ---
+    public void setExistingSubjects(Map<String, String> dbSubjects) {
+        if (dbSubjects != null) {
+            this.subjectColorMap.putAll(dbSubjects);
+            updateSelectItems();
+        }
     }
 
-    private void openNewSubjectDialog(Select<String> subjectSelect, String previousValue) {
+    private void updateSelectItems() {
+        List<String> currentItems = new ArrayList<>(subjectColorMap.keySet());
+        currentItems.add(ADD_NEW_OPTION);
+        subjectSelect.setItems(currentItems);
+    }
+
+    private void openNewSubjectDialog(String previousValue) {
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle("Create New Subject");
 
@@ -151,7 +158,7 @@ public class TaskForm extends VerticalLayout {
             if (!newSubject.isEmpty() && !subjectColorMap.containsKey(newSubject) && !newSubject.equals(ADD_NEW_OPTION)) {
                 String chosenColor = colorPicker.getValue();
                 subjectColorMap.put(newSubject, chosenColor);
-                updateSelectItems(subjectSelect);
+                updateSelectItems();
                 subjectSelect.setValue(newSubject);
                 if (this.task != null) {
                     this.task.setSubjectColor(chosenColor);
@@ -232,7 +239,7 @@ public class TaskForm extends VerticalLayout {
         binder.setReadOnly(!isEditing);
         dueDatePicker.setReadOnly(!isEditing);
         dueTimePicker.setReadOnly(!isEditing);
-        completedCheckbox.setReadOnly(!isEditing); // Lock the checkbox when not editing
+        completedCheckbox.setReadOnly(!isEditing);
         saveBtn.setVisible(isEditing);
         cancelBtn.setVisible(isEditing);
     }
