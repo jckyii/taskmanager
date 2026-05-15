@@ -1,31 +1,49 @@
 package com.jry.base.ui.components;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
 import com.jry.backend.entities.Task;
 import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.details.DetailsVariant;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-
 public class TaskCardList extends VerticalLayout {
     private final List<Task> allTasks;
-    private final Consumer<Task> onDelete;
-    private final Consumer<Task> onComplete;
+    private Consumer<Task> onDelete;
+    private Consumer<Task> onComplete;
 
-    public TaskCardList(List<Task> allTasks, Consumer<Task> onComplete, Consumer<Task> onDelete) {
+    public TaskCardList(List<Task> allTasks) {
         this.allTasks = allTasks;
-        this.onDelete = onDelete;
-        this.onComplete = onComplete;
         setWidthFull();
         setPadding(false);
         setSpacing(true);
         // Default initial load
+        updateList("", "All Categories", "All Subjects", "Group by Status");
+    }
+
+    public void setOnDelete(Consumer<Task> onDelete) {
+        this.onDelete = onDelete;
+    }
+
+    public void setOnComplete(Consumer<Task> onComplete) {
+        this.onComplete = onComplete;
+    }
+
+
+    public void refresh(List<Task> updatedTasks) {
+        this.allTasks.clear();
+        this.allTasks.addAll(updatedTasks);
         updateList("", "All Categories", "All Subjects", "Group by Status");
     }
 

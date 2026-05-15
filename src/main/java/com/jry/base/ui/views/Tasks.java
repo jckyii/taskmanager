@@ -99,21 +99,20 @@ public class Tasks extends VerticalLayout {
         List<Task> allTasksInDatabase = taskRepo.findByUser(currentUser);
 
         // --- 5. BUILD THE GRID ---
-        TaskCardList grid = new TaskCardList(allTasksInDatabase,
-                taskToComplete -> {
+        TaskCardList grid = new TaskCardList(allTasksInDatabase);
+        grid.setOnComplete(taskToComplete -> {
                     taskToComplete.setCompleted(true);
                     taskRepo.save(taskToComplete);
 
                     VaadinSession.getCurrent().setAttribute("showCompleteBanner", true);
-                    getUI().ifPresent(ui -> ui.getPage().reload());
-                },
-                taskToDelete -> {
+                    grid.refresh(taskRepo.findByUser(currentUser));
+                });
+        grid.setOnDelete(taskToDelete -> {
                     taskRepo.delete(taskToDelete);
 
                     VaadinSession.getCurrent().setAttribute("showDeleteBanner", true);
-                    getUI().ifPresent(ui -> ui.getPage().reload());
-                }
-        );
+                    grid.refresh(taskRepo.findByUser(currentUser));
+                });
 
         // --- 6. BUILD THE TOOLBAR ---
         TextField searchField = new TextField();
