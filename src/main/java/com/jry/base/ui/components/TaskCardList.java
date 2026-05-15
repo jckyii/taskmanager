@@ -40,6 +40,8 @@ public class TaskCardList extends VerticalLayout {
         this.onComplete = onComplete;
     }
 
+    
+
 
     public void refresh(List<Task> updatedTasks) {
         this.allTasks.clear();

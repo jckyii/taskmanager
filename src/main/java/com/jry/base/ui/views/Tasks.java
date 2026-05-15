@@ -38,19 +38,11 @@ public class Tasks extends VerticalLayout {
 
         // --- 1. CHECK FOR RELOAD BANNERS ---
         if (Boolean.TRUE.equals(VaadinSession.getCurrent().getAttribute("showCompleteBanner"))) {
-            Notification completeBanner = Notification.show("Task marked as completed! 🎉");
-            completeBanner.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            completeBanner.setPosition(Notification.Position.TOP_CENTER);
-            completeBanner.setDuration(3000);
-            VaadinSession.getCurrent().setAttribute("showCompleteBanner", null);
+            showTaskCompletedBanner();
         }
 
         if (Boolean.TRUE.equals(VaadinSession.getCurrent().getAttribute("showDeleteBanner"))) {
-            Notification deletedBanner = Notification.show("Task permanently deleted.");
-            deletedBanner.addThemeVariants(NotificationVariant.LUMO_ERROR);
-            deletedBanner.setPosition(Notification.Position.TOP_CENTER);
-            deletedBanner.setDuration(3000);
-            VaadinSession.getCurrent().setAttribute("showDeleteBanner", null);
+            showTaskDeletedBanner();
         }
 
         // --- 2. GET THE LOGGED IN USER ---
@@ -103,15 +95,13 @@ public class Tasks extends VerticalLayout {
         grid.setOnComplete(taskToComplete -> {
                     taskToComplete.setCompleted(true);
                     taskRepo.save(taskToComplete);
-
-                    VaadinSession.getCurrent().setAttribute("showCompleteBanner", true);
                     grid.refresh(taskRepo.findByUser(currentUser));
+                    showTaskCompletedBanner();
                 });
         grid.setOnDelete(taskToDelete -> {
                     taskRepo.delete(taskToDelete);
-
-                    VaadinSession.getCurrent().setAttribute("showDeleteBanner", true);
                     grid.refresh(taskRepo.findByUser(currentUser));
+                    showTaskDeletedBanner();
                 });
 
         // --- 6. BUILD THE TOOLBAR ---
@@ -169,4 +159,21 @@ public class Tasks extends VerticalLayout {
         setPadding(true);
         add(header, toolbar, grid);
     }
+
+    private void showTaskCompletedBanner() {
+        Notification completeBanner = Notification.show("Task marked as completed! 🎉");
+        completeBanner.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        completeBanner.setPosition(Notification.Position.TOP_CENTER);
+        completeBanner.setDuration(3000);
+        VaadinSession.getCurrent().setAttribute("showCompleteBanner", null);
+    }
+
+        private void showTaskDeletedBanner() {
+            Notification deletedBanner = Notification.show("Task permanently deleted.");
+            deletedBanner.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            deletedBanner.setPosition(Notification.Position.TOP_CENTER);
+            deletedBanner.setDuration(3000);
+            VaadinSession.getCurrent().setAttribute("showDeleteBanner", null);
+        }
+
 }
