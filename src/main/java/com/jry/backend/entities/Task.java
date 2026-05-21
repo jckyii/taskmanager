@@ -197,10 +197,7 @@ public class Task {
 
     @Override
     public int hashCode() {
-        // Hashcode should never change during the lifetime of an object. Because of
-        // this we can't use getId() to calculate the hashcode. Unless you have sets
-        // with lots of entities in them, returning the same hashcode should not be a
-        // problem.
+        // Hashcode should never change during the lifetime of an object, so we only use the ID which is assigned once and never changes.
         return getClass().hashCode();
     }
 }

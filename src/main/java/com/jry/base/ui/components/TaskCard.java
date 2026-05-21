@@ -18,11 +18,30 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 public class TaskCard extends VerticalLayout {
     public static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("EEEE, MMM dd yyyy hh:mm a", Locale.US);
 
+    private final Task task;
+    private final Consumer<Task> onComplete;
+    private final Consumer<Task> onDelete;
+
     public TaskCard(Task task, Consumer<Task> onComplete, Consumer<Task> onDelete) {
+        this.task = task;
+        this.onComplete = onComplete;
+        this.onDelete = onDelete;
+
+        applyBaseStyling();
+
+        VerticalLayout topContent = createTopContent();
+        HorizontalLayout footer = createFooter();
+        Button actionBtn = createFloatingActionBtn();
+
+        add(actionBtn);
+        add(topContent, footer);
+        expand(topContent);
+    }
+
+    private void applyBaseStyling() {
         this.getStyle().set("position", "relative");
         addClassName("task-card");
 
-        // --- 1. STRICT STATUS LOGIC ---
         boolean isCompleted = task.isCompleted();
         boolean isPastDue = task.getDueDate() != null && task.getDueDate().isBefore(LocalDateTime.now()) && !isCompleted;
         boolean isUrgent = task.isUrgent() && !isCompleted;
@@ -36,7 +55,7 @@ public class TaskCard extends VerticalLayout {
             cardBackground = "#fff7ed"; // Orange
         }
 
-        // --- 2. BASE STYLING ---
+        //this is base styling that applies to all cards regardless of status, the background color is determined by the status logic above
         getStyle().set("border", "1px solid #dcdcdc");
         getStyle().set("border-radius", "12px");
         getStyle().set("padding", "14px"); 
@@ -57,8 +76,10 @@ public class TaskCard extends VerticalLayout {
         setWidthFull();
         setSpacing(false);
         this.setMinHeight("140px"); 
+    }
 
-        // --- 3. TOP RIGHT SUBJECT PILL ---
+    private VerticalLayout createTopContent() {
+        //the subject pill is added in the header to ensure it always appears at the top right corner, even if the description is long
         HorizontalLayout header = new HorizontalLayout();
         header.setWidthFull();
         header.setJustifyContentMode(JustifyContentMode.END);
@@ -79,7 +100,7 @@ public class TaskCard extends VerticalLayout {
             header.add(subjectPill);
         }
 
-        // --- 4. TEXT FIELDS ---
+        //text fields should be added after the header to ensure the pill is always at the top right corner
         VerticalLayout topContent = new VerticalLayout();
         topContent.setPadding(false);
         topContent.setSpacing(false);
@@ -99,66 +120,29 @@ public class TaskCard extends VerticalLayout {
             topContent.add(description);
         }
 
-        // --- 5. CATEGORY BADGE ---
-        Span categoryBadge = new Span(task.getCategory() != null ? task.getCategory() : "Personal");
-        categoryBadge.getStyle().set("padding", "4px 10px");
-        categoryBadge.getStyle().set("border-radius", "12px");
-        categoryBadge.getStyle().set("font-size", "12px");
-        categoryBadge.getStyle().set("font-weight", "bold");
-        categoryBadge.getStyle().set("border", "1px solid rgba(0, 0, 0, 0.15)");
+        return topContent;
+    }
 
-        switch (categoryBadge.getText()) {
-            case "Work":
-                categoryBadge.getStyle().set("background-color", "#e2e8f0");
-                categoryBadge.getStyle().set("color", "#1e293b");
-                break;
-            case "School":
-                categoryBadge.getStyle().set("background-color", "#f3e8ff");
-                categoryBadge.getStyle().set("color", "#6b21a8");
-                break;
-            case "Home":
-                categoryBadge.getStyle().set("background-color", "#ccfbf1");
-                categoryBadge.getStyle().set("color", "#115e59");
-                break;
-            case "Casual":
-            default:
-                categoryBadge.getStyle().set("background-color", "#fef3c7");
-                categoryBadge.getStyle().set("color", "#92400e");
-                break;
-        }
-
-        // --- 6. STATUS BADGE ---
-        Span statusBadge = new Span();
-        statusBadge.getStyle().set("padding", "4px 10px");
-        statusBadge.getStyle().set("border-radius", "12px");
-        statusBadge.getStyle().set("font-size", "12px");
-        statusBadge.getStyle().set("font-weight", "bold");
-        statusBadge.getStyle().set("border", "1px solid rgba(0, 0, 0, 0.15)");
-
-        if (isCompleted) {
-            statusBadge.setText("Completed");
-            statusBadge.getStyle().set("color", "#166534");
-            statusBadge.getStyle().set("background-color", "#dcfce7");
-        } else if (isPastDue) {
-            statusBadge.setText("Overdue");
-            statusBadge.getStyle().set("color", "#991b1b");
-            statusBadge.getStyle().set("background-color", "#fecaca");
-        } else if (isUrgent) {
-            statusBadge.setText("Urgent");
-            statusBadge.getStyle().set("color", "#9a3412");
-            statusBadge.getStyle().set("background-color", "#ffedd5");
-        } else {
-            statusBadge.setText("Ongoing");
-            statusBadge.getStyle().set("color", "#1e3a8a");
-            statusBadge.getStyle().set("background-color", "#dbeafe");
-        }
-
+    private HorizontalLayout createFooter() {
         String dateString = task.getDueDate() != null ? task.getDueDate().format(DATE_TIME_FORMATTER) : "No due date";
         Span date = new Span("Due: " + dateString);
         date.getStyle().set("font-size", "14px");
         date.getStyle().set("color", "#888888");
 
-        // --- 7. THE FLOATING BUTTONS (WITH NEW TOOLTIPS) ---
+        HorizontalLayout rightBadges = new HorizontalLayout(createCategoryBadge(), createStatusBadge());
+        rightBadges.setAlignItems(Alignment.CENTER);
+        rightBadges.getStyle().set("gap", "8px");
+
+        HorizontalLayout footer = new HorizontalLayout(date, rightBadges);
+        footer.setWidthFull();
+        footer.setAlignItems(Alignment.CENTER);
+        footer.setJustifyContentMode(JustifyContentMode.BETWEEN);
+
+        return footer;
+    }
+
+    private Button createFloatingActionBtn() {
+        boolean isCompleted = task.isCompleted();
         Button actionBtn = new Button();
         Icon actionIcon;
 
@@ -170,7 +154,6 @@ public class TaskCard extends VerticalLayout {
             actionIcon.setColor("#4b5563");
             actionBtn.getStyle().set("border", "1px solid #d1d5db");
             
-            // ---> THE NEW CHECKMARK TOOLTIP <---
             actionBtn.setTooltipText("Mark as Completed");
 
             actionBtn.getElement().addEventListener("mouseenter", e -> {
@@ -195,7 +178,6 @@ public class TaskCard extends VerticalLayout {
             actionIcon.setColor("#4b5563");
             actionBtn.getStyle().set("border", "1px solid #d1d5db");
             
-            // ---> THE NEW TRASH CAN TOOLTIP <---
             actionBtn.setTooltipText("Permanently Delete Task");
 
             actionBtn.getElement().addEventListener("mouseenter", e -> {
@@ -222,30 +204,86 @@ public class TaskCard extends VerticalLayout {
         actionBtn.getStyle().set("transform", "translateY(-50%)");
         actionBtn.getStyle().set("z-index", "10");
         actionBtn.getStyle().set("transition", "all 0.2s ease");
-        add(actionBtn);
+        
+        return actionBtn;
+    }
 
-        // --- 8. FOOTER LAYOUT ---
-        HorizontalLayout rightBadges = new HorizontalLayout(categoryBadge, statusBadge);
-        rightBadges.setAlignItems(Alignment.CENTER);
-        rightBadges.getStyle().set("gap", "8px");
+    private Span createCategoryBadge() {
+        Span categoryBadge = new Span(task.getCategory() != null ? task.getCategory() : "Personal");
+        categoryBadge.getStyle().set("padding", "4px 10px");
+        categoryBadge.getStyle().set("border-radius", "12px");
+        categoryBadge.getStyle().set("font-size", "12px");
+        categoryBadge.getStyle().set("font-weight", "bold");
+        categoryBadge.getStyle().set("border", "1px solid rgba(0, 0, 0, 0.15)");
 
-        HorizontalLayout footer = new HorizontalLayout(date, rightBadges);
-        footer.setWidthFull();
-        footer.setAlignItems(Alignment.CENTER);
-        footer.setJustifyContentMode(JustifyContentMode.BETWEEN);
+        switch (categoryBadge.getText()) {
+            case "Work":
+                categoryBadge.getStyle().set("background-color", "#e2e8f0");
+                categoryBadge.getStyle().set("color", "#1e293b");
+                break;
+            case "School":
+                categoryBadge.getStyle().set("background-color", "#f3e8ff");
+                categoryBadge.getStyle().set("color", "#6b21a8");
+                break;
+            case "Home":
+                categoryBadge.getStyle().set("background-color", "#ccfbf1");
+                categoryBadge.getStyle().set("color", "#115e59");
+                break;
+            case "Casual":
+            default:
+                categoryBadge.getStyle().set("background-color", "#fef3c7");
+                categoryBadge.getStyle().set("color", "#92400e");
+                break;
+        }
+        return categoryBadge;
+    }
 
-        add(topContent, footer);
-        expand(topContent);
+    private Span createStatusBadge() {
+        boolean isCompleted = task.isCompleted();
+        boolean isPastDue = task.getDueDate() != null && task.getDueDate().isBefore(LocalDateTime.now()) && !isCompleted;
+        boolean isUrgent = task.isUrgent() && !isCompleted;
+
+        Span statusBadge = new Span();
+        statusBadge.getStyle().set("padding", "4px 10px");
+        statusBadge.getStyle().set("border-radius", "12px");
+        statusBadge.getStyle().set("font-size", "12px");
+        statusBadge.getStyle().set("font-weight", "bold");
+        statusBadge.getStyle().set("border", "1px solid rgba(0, 0, 0, 0.15)");
+
+        if (isCompleted) {
+            statusBadge.setText("Completed");
+            statusBadge.getStyle().set("color", "#166534");
+            statusBadge.getStyle().set("background-color", "#dcfce7");
+        } else if (isPastDue) {
+            statusBadge.setText("Overdue");
+            statusBadge.getStyle().set("color", "#991b1b");
+            statusBadge.getStyle().set("background-color", "#fecaca");
+        } else if (isUrgent) {
+            statusBadge.setText("Urgent");
+            statusBadge.getStyle().set("color", "#9a3412");
+            statusBadge.getStyle().set("background-color", "#ffedd5");
+        } else {
+            statusBadge.setText("Ongoing");
+            statusBadge.getStyle().set("color", "#1e3a8a");
+            statusBadge.getStyle().set("background-color", "#dbeafe");
+        }
+        return statusBadge;
     }
 
     private String getContrastTextColor(String hexColor) {
         if (hexColor == null || !hexColor.startsWith("#") || hexColor.length() != 7) return "#111827";
         try {
-            int r = Integer.valueOf(hexColor.substring(1, 3), 16);
-            int g = Integer.valueOf(hexColor.substring(3, 5), 16);
-            int b = Integer.valueOf(hexColor.substring(5, 7), 16);
+            int hex = Integer.parseInt(hexColor.substring(1), 16);
+            
+            // Extract R, G, and B using bit shifting
+            int r = (hex & 0xFF0000) >> 16;
+            int g = (hex & 0xFF00) >> 8;
+            int b = (hex & 0xFF);
+            
             double brightness = (r * 299 + g * 587 + b * 114) / 1000.0;
             return brightness < 128 ? "#ffffff" : "#111827";
-        } catch (Exception e) { return "#111827"; }
+        } catch (Exception e) { 
+            return "#111827"; 
+        }
     }
 }
