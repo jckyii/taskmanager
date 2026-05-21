@@ -6,7 +6,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import com.jry.backend.entities.Task;
 import com.vaadin.flow.component.button.Button;
@@ -38,81 +40,38 @@ public class TaskForm extends VerticalLayout {
 
     private final DatePicker dueDatePicker = new DatePicker("Due date");
     private final TimePicker dueTimePicker = new TimePicker("Time (optional)");
-
     private final Checkbox completedCheckbox = new Checkbox("Mark as Completed");
 
-    // NEW: Moved subjectSelect to the top so other methods can access it!
     private final Select<String> subjectSelect = new Select<>();
+    private final Select<String> categorySelect = new Select<>();
 
     private Consumer<Task> onSave;
     private Runnable onCancel;
     private Consumer<String> onDeleteSubject;
+    private Consumer<String> onDeleteCategory;
 
     private final Map<String, String> subjectColorMap = new HashMap<>();
-    private final String ADD_NEW_OPTION = "+ Add New Subject...";
+    private final Map<String, String> categoryColorMap = new HashMap<>();
+
+    private final List<String> categoryList = new ArrayList<>();
+
+    private final String ADD_NEW_SUBJECT = "+ Add New Subject...";
+    private final String ADD_NEW_CATEGORY = "+ Add New Category...";
 
     public TaskForm() {
-        subjectColorMap.put("Math", "#fecaca");
-        subjectColorMap.put("Science", "#bbf7d0");
-        subjectColorMap.put("History", "#fef08a");
+        initDefaultData();
 
         TextField title = new TextField("Title");
-
-        Select<String> categorySelect = new Select<>();
-        categorySelect.setLabel("Category");
-        categorySelect.setItems("Work", "School", "Home", "Casual", "Uncategorized");
-
-        subjectSelect.setLabel("Subject");
-        subjectSelect.setEmptySelectionAllowed(true);
-        subjectSelect.setEmptySelectionCaption("No Subject");
-
-        updateSelectItems();
-
-        subjectSelect.addValueChangeListener(event -> {
-            String selected = event.getValue();
-            if (ADD_NEW_OPTION.equals(selected)) {
-                openNewSubjectDialog(event.getOldValue());
-            } else if (selected != null && subjectColorMap.containsKey(selected) && this.task != null) {
-                this.task.setSubjectColor(subjectColorMap.get(selected));
-            }
-        });
-
-        Button deleteSubjectBtn = new Button(VaadinIcon.TRASH.create());
-        deleteSubjectBtn.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
-        deleteSubjectBtn.setTooltipText("Delete this subject from ALL tasks");
-
-        deleteSubjectBtn.addClickListener(e -> {
-            String selected = subjectSelect.getValue();
-            if (selected != null && !selected.isEmpty() && !selected.equals(ADD_NEW_OPTION)) {
-                ConfirmDialog dialog = new ConfirmDialog();
-                dialog.setHeader("Delete Subject?");
-                dialog.setText("This will permanently remove '" + selected + "' from ALL tasks. Are you sure?");
-                dialog.setCancelable(true);
-                dialog.setConfirmText("Delete globally");
-                dialog.setConfirmButtonTheme("error primary");
-                dialog.addConfirmListener(event -> {
-                    subjectColorMap.remove(selected);
-                    subjectSelect.clear();
-                    updateSelectItems();
-                    if (onDeleteSubject != null) {
-                        onDeleteSubject.accept(selected);
-                    }
-                });
-                dialog.open();
-            } else {
-                Notification.show("Please select a valid subject to delete.");
-            }
-        });
-
-        HorizontalLayout subjectLayout = new HorizontalLayout(subjectSelect, deleteSubjectBtn);
-        subjectLayout.setAlignItems(Alignment.BASELINE);
-
         TextArea description = new TextArea("Description");
-
         HorizontalLayout dateLayout = new HorizontalLayout(dueDatePicker, dueTimePicker);
         dateLayout.setWidthFull();
         dueDatePicker.setWidth("50%");
         dueTimePicker.setWidth("50%");
+
+        //handles setup
+        HorizontalLayout categoryLayout = createCategoryLayout();
+        HorizontalLayout subjectLayout = createSubjectLayout();
+
 
         binder.bind(completedCheckbox, Task::isCompleted, Task::setCompleted);
         binder.forField(title).asRequired("Please enter a title").bind(Task::getTitle, Task::setTitle);
@@ -121,69 +80,201 @@ public class TaskForm extends VerticalLayout {
         binder.bind(categorySelect, Task::getCategory, Task::setCategory);
 
         formLayout.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
-
-        formLayout.add(completedCheckbox, title, categorySelect, subjectLayout, description, dateLayout);
+        formLayout.add(completedCheckbox, title, categoryLayout, subjectLayout, description, dateLayout);
 
         configureButtons();
         add(formLayout, new HorizontalLayout(saveBtn, cancelBtn));
     }
 
-    // --- NEW METHOD: Merges database subjects with your hardcoded ones! ---
-    public void setExistingSubjects(Map<String, String> dbSubjects) {
-        if (dbSubjects != null) {
-            this.subjectColorMap.putAll(dbSubjects);
-            updateSelectItems();
-        }
+    //specificied layouts
+
+    private HorizontalLayout createCategoryLayout() {
+        categorySelect.setLabel("Category");
+        updateCategoryItems();
+
+        categorySelect.addValueChangeListener(e -> {
+            String selected = e.getValue();
+            if (selected != null && categoryColorMap.containsKey(selected) && this.task != null) {
+                this.task.setCategoryColor(categoryColorMap.get(selected));
+            }
+        });
+
+        return createDynamicFieldLayout(
+                "Category", categorySelect, ADD_NEW_CATEGORY,
+                prev -> openDynamicDialog("Category", categorySelect, prev, true,
+                        name -> categoryColorMap.containsKey(name) || name.equals(ADD_NEW_CATEGORY),
+                        (name, color) -> {
+                            categoryColorMap.put(name, color);
+                            updateCategoryItems();
+                            if (this.task != null) this.task.setCategoryColor(color);
+                        }
+                ),
+                name -> !name.equals("Uncategorized"),
+                name -> {
+                    categoryColorMap.remove(name);
+                    updateCategoryItems();
+                    if (onDeleteCategory != null) onDeleteCategory.accept(name);
+                }
+        );
     }
 
-    private void updateSelectItems() {
-        List<String> currentItems = new ArrayList<>(subjectColorMap.keySet());
-        currentItems.add(ADD_NEW_OPTION);
-        subjectSelect.setItems(currentItems);
+    private HorizontalLayout createSubjectLayout() {
+        subjectSelect.setLabel("Subject");
+        subjectSelect.setEmptySelectionAllowed(true);
+        subjectSelect.setEmptySelectionCaption("No Subject");
+        updateSubjectItems();
+
+        subjectSelect.addValueChangeListener(e -> {
+            String selected = e.getValue();
+            if (selected != null && subjectColorMap.containsKey(selected) && this.task != null) {
+                this.task.setSubjectColor(subjectColorMap.get(selected));
+            }
+        });
+
+        return createDynamicFieldLayout(
+                "Subject", subjectSelect, ADD_NEW_SUBJECT,
+                prev -> openDynamicDialog("Subject", subjectSelect, prev, true,
+                        name -> subjectColorMap.containsKey(name) || name.equals(ADD_NEW_SUBJECT),
+                        (name, color) -> {
+                            subjectColorMap.put(name, color);
+                            updateSubjectItems();
+                            if (this.task != null) this.task.setSubjectColor(color);
+                        }
+                ),
+                name -> true,
+                name -> {
+                    subjectColorMap.remove(name);
+                    updateSubjectItems();
+                    if (onDeleteSubject != null) onDeleteSubject.accept(name);
+                }
+        );
     }
 
-    private void openNewSubjectDialog(String previousValue) {
+
+    //master builder
+    private HorizontalLayout createDynamicFieldLayout(
+            String entityName, Select<String> select, String addNewOption,
+            Consumer<String> onAddNewClick, Predicate<String> canDelete, Consumer<String> onDeleteConfirmed) {
+
+        select.addValueChangeListener(event -> {
+            if (addNewOption.equals(event.getValue())) {
+                onAddNewClick.accept(event.getOldValue());
+            }
+        });
+
+        Button deleteBtn = new Button(VaadinIcon.TRASH.create());
+        deleteBtn.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
+        deleteBtn.setTooltipText("Delete this " + entityName.toLowerCase() + " from ALL tasks");
+
+        deleteBtn.addClickListener(e -> {
+            String selected = select.getValue();
+            if (selected != null && !selected.isEmpty() && !selected.equals(addNewOption)) {
+                if (canDelete.test(selected)) {
+                    ConfirmDialog dialog = new ConfirmDialog();
+                    dialog.setHeader("Delete " + entityName + "?");
+                    dialog.setText("This will permanently remove '" + selected + "' from ALL tasks. Are you sure?");
+                    dialog.setCancelable(true);
+                    dialog.setConfirmText("Delete globally");
+                    dialog.setConfirmButtonTheme("error primary");
+                    dialog.addConfirmListener(event -> {
+                        select.clear();
+                        onDeleteConfirmed.accept(selected);
+                    });
+                    dialog.open();
+                } else {
+                    Notification.show("Cannot delete default " + entityName.toLowerCase() + ".");
+                }
+            } else {
+                Notification.show("Please select a valid " + entityName.toLowerCase() + " to delete.");
+            }
+        });
+
+        HorizontalLayout layout = new HorizontalLayout(select, deleteBtn);
+        layout.setAlignItems(Alignment.BASELINE);
+        return layout;
+    }
+
+    private void openDynamicDialog(
+            String entityName, Select<String> select, String previousValue, boolean includeColor,
+            Predicate<String> isDuplicate, BiConsumer<String, String> onSave) {
+
         Dialog dialog = new Dialog();
-        dialog.setHeaderTitle("Create New Subject");
+        dialog.setHeaderTitle("Create New " + entityName);
 
-        TextField newSubjectField = new TextField("Subject Name");
-        newSubjectField.setWidthFull();
+        TextField nameField = new TextField(entityName + " Name");
+        nameField.setWidthFull();
 
         Input colorPicker = new Input();
         colorPicker.setType("color");
         colorPicker.setValue("#e5e7eb");
 
+        HorizontalLayout colorLayout = new HorizontalLayout(new Span("Select Color: "), colorPicker);
+        colorLayout.setAlignItems(Alignment.CENTER);
+        colorLayout.setVisible(includeColor); // Hides the color picker entirely for Categories
+
         Button saveButton = new Button("Save", e -> {
-            String newSubject = newSubjectField.getValue().trim();
-            if (!newSubject.isEmpty() && !subjectColorMap.containsKey(newSubject) && !newSubject.equals(ADD_NEW_OPTION)) {
-                String chosenColor = colorPicker.getValue();
-                subjectColorMap.put(newSubject, chosenColor);
-                updateSelectItems();
-                subjectSelect.setValue(newSubject);
-                if (this.task != null) {
-                    this.task.setSubjectColor(chosenColor);
-                }
+            String newName = nameField.getValue().trim();
+            if (!newName.isEmpty() && !isDuplicate.test(newName)) {
+                String chosenColor = includeColor ? colorPicker.getValue() : null;
+                onSave.accept(newName, chosenColor);
+                select.setValue(newName);
                 dialog.close();
             } else {
-                newSubjectField.setInvalid(true);
-                newSubjectField.setErrorMessage("Invalid or duplicate name");
+                nameField.setInvalid(true);
+                nameField.setErrorMessage("Invalid or duplicate name");
             }
         });
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         Button cancelButton = new Button("Cancel", e -> {
-            subjectSelect.setValue(previousValue);
+            select.setValue(previousValue);
             dialog.close();
         });
 
-        HorizontalLayout colorLayout = new HorizontalLayout(new Span("Select Color: "), colorPicker);
-        colorLayout.setAlignItems(Alignment.CENTER);
-        VerticalLayout dialogLayout = new VerticalLayout(newSubjectField, colorLayout);
+        VerticalLayout dialogLayout = new VerticalLayout(nameField, colorLayout);
         dialogLayout.setPadding(false);
 
         dialog.add(dialogLayout);
         dialog.getFooter().add(cancelButton, saveButton);
         dialog.open();
+    }
+
+    //event methods + data management
+    private void initDefaultData() {
+        subjectColorMap.put("Math", "#fecaca");
+        subjectColorMap.put("Science", "#bbf7d0");
+        subjectColorMap.put("History", "#fef08a");
+
+        categoryColorMap.put("Work", "#e2e8f0");
+        categoryColorMap.put("School", "#f3e8ff");
+        categoryColorMap.put("Home", "#ccfbf1");
+        categoryColorMap.put("Uncategorized", "#fef3c7");
+    }
+
+    public void setExistingCategories(Map<String, String> dbCategories) {
+        if (dbCategories != null) {
+            categoryColorMap.putAll(dbCategories);
+            updateCategoryItems();
+        }
+    }
+
+    public void setExistingSubjects(Map<String, String> dbSubjects) {
+        if (dbSubjects != null) {
+            subjectColorMap.putAll(dbSubjects);
+            updateSubjectItems();
+        }
+    }
+
+    private void updateCategoryItems() {
+        List<String> currentItems = new ArrayList<>(categoryColorMap.keySet());
+        currentItems.add(ADD_NEW_CATEGORY);
+        categorySelect.setItems(currentItems);
+    }
+
+    private void updateSubjectItems() {
+        List<String> currentItems = new ArrayList<>(subjectColorMap.keySet());
+        currentItems.add(ADD_NEW_SUBJECT);
+        subjectSelect.setItems(currentItems);
     }
 
     private void configureButtons() {
@@ -234,6 +325,7 @@ public class TaskForm extends VerticalLayout {
     public void addSaveListener(Consumer<Task> onSave) { this.onSave = onSave; }
     public void addCancelListener(Runnable onCancel) { this.onCancel = onCancel; }
     public void addDeleteSubjectListener(Consumer<String> onDeleteSubject) { this.onDeleteSubject = onDeleteSubject; }
+    public void addDeleteCategoryListener(Consumer<String> onDeleteCategory) { this.onDeleteCategory = onDeleteCategory; }
 
     public void setEditable(boolean isEditing) {
         binder.setReadOnly(!isEditing);

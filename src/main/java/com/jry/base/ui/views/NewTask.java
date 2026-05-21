@@ -46,9 +46,18 @@ public class NewTask extends VerticalLayout {
                         (color1, color2) -> color1 // If duplicate subjects exist, keep the first color
                 ));
 
+        Map<String, String> existingCategoriesMap = taskRepo.findByUser(currentUser).stream()
+                .filter(t -> t.getCategory() != null && !t.getCategory().isEmpty())
+                .collect(Collectors.toMap(
+                        Task::getCategory,
+                        t -> t.getCategoryColor() != null ? t.getCategoryColor() : "#fef3c7", // Default yellow
+                        (color1, color2) -> color1
+                ));
+
         taskForm.setTask(new Task());
         //pass map into form to populate subject dropdown with existing subjects and their colors
         taskForm.setExistingSubjects(existingSubjectsMap);
+        taskForm.setExistingCategories(existingCategoriesMap);
         taskForm.addSaveListener(this::saveTask);
         taskForm.addCancelListener(() -> getUI().ifPresent(ui -> ui.navigate("")));
 
