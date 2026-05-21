@@ -40,8 +40,6 @@ public class TaskCardList extends VerticalLayout {
         this.onComplete = onComplete;
     }
 
-    
-
 
     public void refresh(List<Task> updatedTasks) {
         this.allTasks.clear();
@@ -57,7 +55,7 @@ public class TaskCardList extends VerticalLayout {
         removeAll(); // Clear the view
         String lowerTerm = (searchTerm == null) ? "" : searchTerm.toLowerCase();
 
-        // 1. First, get ALL tasks that match the search/filters
+        //get all tasks that match the search/filters
         List<Task> filteredTasks = allTasks.stream()
                 .filter(task -> {
                     boolean matchesText = true;
@@ -83,7 +81,7 @@ public class TaskCardList extends VerticalLayout {
                     }
                     return matchesText && matchesCategory && matchesSubject;
                 })
-                .collect(Collectors.toList());
+                .collect(Collectors.toList());//keep because otherwise tolist is immutable
 
         // 2. SPLIT COMPLETED VS ACTIVE
         List<Task> completedTasks = new ArrayList<>();
