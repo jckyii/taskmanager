@@ -9,7 +9,7 @@ ENV HOME=/app
 RUN mkdir -p $HOME
 WORKDIR $HOME
 COPY . $HOME
-
+RUN chmod +x mvnw
 # If you have a Vaadin Pro key, pass it as a secret with id "proKey":
 #
 #   $ docker build --secret id=proKey,src=$HOME/.vaadin/proKey .
