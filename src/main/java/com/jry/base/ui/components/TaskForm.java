@@ -302,6 +302,9 @@ public class TaskForm extends VerticalLayout {
     }
 
     public void setTask(Task task) {
+        if (task.getCategory() == null || task.getCategory().isEmpty()) {
+            task.setCategory("Uncategorized");
+        }
         this.task = task;
         binder.readBean(task);
         updateDateAndTimeFields();
