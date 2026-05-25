@@ -112,7 +112,7 @@ public class Tasks extends VerticalLayout {
         searchField.setValueChangeMode(ValueChangeMode.EAGER);
 
         Select<String> categoryFilter = new Select<>();
-        categoryFilter.setItems("All Categories", "Work", "School", "Home", "Casual", "Uncategorized");
+        categoryFilter.setItems("All Categories", "Work", "School", "Home", "Uncategorized");
         categoryFilter.setValue("All Categories");
 
         Select<String> subjectFilter = new Select<>();
