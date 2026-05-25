@@ -58,6 +58,8 @@ public class Task {
     @Column(name = "category")
     private String category = "Uncategorized"; // Default category
 
+    @Column(name = "category_color")
+    private String categoryColor = "#fef3c7"; // Default light yellow
 
 
     // Add the getter and setter
@@ -148,6 +150,14 @@ public class Task {
 
     public void setSubjectColor(String subjectColor) {
         this.subjectColor = subjectColor;
+    }
+
+    public String getCategoryColor() {
+        return categoryColor;
+    }
+
+    public void setCategoryColor(String categoryColor) {
+        this.categoryColor = categoryColor;
     }
 
     public String getCategory() {

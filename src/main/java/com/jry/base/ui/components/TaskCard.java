@@ -216,25 +216,9 @@ public class TaskCard extends VerticalLayout {
         categoryBadge.getStyle().set("font-weight", "bold");
         categoryBadge.getStyle().set("border", "1px solid rgba(0, 0, 0, 0.15)");
 
-        switch (categoryBadge.getText()) {
-            case "Work":
-                categoryBadge.getStyle().set("background-color", "#e2e8f0");
-                categoryBadge.getStyle().set("color", "#1e293b");
-                break;
-            case "School":
-                categoryBadge.getStyle().set("background-color", "#f3e8ff");
-                categoryBadge.getStyle().set("color", "#6b21a8");
-                break;
-            case "Home":
-                categoryBadge.getStyle().set("background-color", "#ccfbf1");
-                categoryBadge.getStyle().set("color", "#115e59");
-                break;
-            case "Casual":
-            default:
-                categoryBadge.getStyle().set("background-color", "#fef3c7");
-                categoryBadge.getStyle().set("color", "#92400e");
-                break;
-        }
+        String bgColor = task.getCategoryColor() != null ? task.getCategoryColor() : "#fef3c7";
+        categoryBadge.getStyle().set("background-color", bgColor);
+        categoryBadge.getStyle().set("color", getContrastTextColor(bgColor));
         return categoryBadge;
     }
 
