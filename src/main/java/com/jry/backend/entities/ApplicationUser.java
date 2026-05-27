@@ -30,6 +30,15 @@ public class ApplicationUser implements UserDetails {
     @Column(nullable = false)
     private String password;
 
+    /**
+     * How many hours before a task's due date it starts counting as "urgent".
+     * Defaults to 48 hours (the old hardcoded 2-day window). Existing rows in the DB
+     * may be NULL after the schema migration — getUrgentThresholdHours() handles that
+     * by returning the default, so no manual backfill is needed.
+     */
+    @Column(name = "urgent_threshold_hours")
+    private Integer urgentThresholdHours = 48;
+
 
     public ApplicationUser() {}
 
@@ -63,11 +72,34 @@ public class ApplicationUser implements UserDetails {
         return this.username;
     }
 
-    public String getEmail() { 
-        return email; 
+    public String getEmail() {
+        return email;
     }
-    
-    public void setEmail(String email) { 
-        this.email = email; 
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    /** Updates the display name (the entity's `username` field is the display name; the
+     *  authentication identity is the email, exposed via getUsername()). */
+    public void setDisplayName(String displayName) {
+        this.username = displayName;
+    }
+
+    /** Sets the (already-hashed) password. UserService is responsible for hashing. */
+    public void setPassword(String hashedPassword) {
+        this.password = hashedPassword;
+    }
+
+    /**
+     * Returns the configured urgency threshold in hours. Null-safe: if the column is
+     * NULL for an old row (or unset on a brand-new entity), returns the default of 48.
+     */
+    public int getUrgentThresholdHours() {
+        return urgentThresholdHours == null ? 48 : urgentThresholdHours;
+    }
+
+    public void setUrgentThresholdHours(int urgentThresholdHours) {
+        this.urgentThresholdHours = urgentThresholdHours;
     }
 }

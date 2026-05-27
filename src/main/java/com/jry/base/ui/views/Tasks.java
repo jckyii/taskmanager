@@ -14,7 +14,6 @@ import com.jry.base.ui.components.TaskDialog;
 import com.jry.base.ui.components.ViewToolbar;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -52,37 +51,21 @@ public class Tasks extends VerticalLayout {
                 .orElseThrow(() -> new IllegalStateException("No account found for email: " + userEmail));
 
         // --- 2. HEADER (via ViewToolbar, so it has the drawer toggle + consistent title
-        //         font matching the other views, and the action buttons on the right). ---
+        //         font matching the other views, and the action button on the right).
+        //         Sign Out lives in the drawer footer now, so it's no longer here. ---
 
         // New Task now opens a dialog HUD instead of navigating to a page.
         Button newTaskBtn = new Button("New Task", e ->
                 TaskDialog.openForNew(taskRepo, currentUser, this::reloadTasks));
         newTaskBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        Button logoutBtn = new Button("Sign Out", VaadinIcon.SIGN_OUT.create());
-        logoutBtn.addThemeVariants(ButtonVariant.LUMO_ERROR);
-        logoutBtn.getStyle().set("cursor", "pointer");
-
-        logoutBtn.addClickListener(e -> {
-            ConfirmDialog dialog = new ConfirmDialog();
-            dialog.setHeader("Sign Out");
-            dialog.setText("Are you sure you want to log out of your account?");
-            dialog.setCancelable(true);
-            dialog.setCancelText("Cancel");
-            dialog.setConfirmText("Sign Out");
-            dialog.setConfirmButtonTheme("error primary");
-            dialog.addConfirmListener(event -> authContext.logout());
-            dialog.open();
-        });
-
-        ViewToolbar header = new ViewToolbar("Welcome, " + currentUser.getDisplayName(),
-                ViewToolbar.group(newTaskBtn, logoutBtn));
+        ViewToolbar header = new ViewToolbar("Welcome, " + currentUser.getDisplayName(), newTaskBtn);
 
         // --- 3. FETCH DATA ---
         List<Task> allTasksInDatabase = taskRepo.findByUser(currentUser);
 
         // --- 4. BUILD THE GRID ---
-        grid = new TaskCardList(allTasksInDatabase);
+        grid = new TaskCardList(allTasksInDatabase, currentUser.getUrgentThresholdHours());
         grid.setOnComplete(taskToComplete -> {
             taskToComplete.setCompleted(true);
             taskRepo.save(taskToComplete);

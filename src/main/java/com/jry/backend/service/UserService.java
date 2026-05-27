@@ -42,4 +42,35 @@ public class UserService implements UserDetailsService {
         return userRepo.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("No account found with email: " + email));
     }
+
+    // ============================================================
+    //  Settings updates (used by the Settings view)
+    // ============================================================
+
+    /** Updates the user's display name. */
+    public void updateDisplayName(ApplicationUser user, String newDisplayName) {
+        // The display name is the entity's `username` field; the login identity is the email,
+        // so renaming the display name does NOT affect authentication.
+        user.setDisplayName(newDisplayName);
+        userRepo.save(user);
+    }
+
+    /** Updates the user's urgency threshold (hours). */
+    public void updateUrgentThresholdHours(ApplicationUser user, int hours) {
+        user.setUrgentThresholdHours(hours);
+        userRepo.save(user);
+    }
+
+    /**
+     * Changes the user's password. Returns true on success; false if the supplied current
+     * password doesn't match. The view shows a friendly error on false.
+     */
+    public boolean changePassword(ApplicationUser user, String currentPasswordPlain, String newPasswordPlain) {
+        if (!passwordEncoder.matches(currentPasswordPlain, user.getPassword())) {
+            return false;
+        }
+        user.setPassword(passwordEncoder.encode(newPasswordPlain));
+        userRepo.save(user);
+        return true;
+    }
 }

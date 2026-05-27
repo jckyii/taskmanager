@@ -23,9 +23,11 @@ public class TaskCardList extends VerticalLayout {
     private Consumer<Task> onDelete;
     private Consumer<Task> onComplete;
     private Consumer<Task> onCardClick;
+    private final int urgentThresholdHours;
 
-    public TaskCardList(List<Task> allTasks) {
+    public TaskCardList(List<Task> allTasks, int urgentThresholdHours) {
         this.allTasks = allTasks;
+        this.urgentThresholdHours = urgentThresholdHours;
         setWidthFull();
         setPadding(false);
         setSpacing(true);
@@ -150,7 +152,7 @@ public class TaskCardList extends VerticalLayout {
         for (Task task : activeTasks) {
             boolean isPastDue = task.getDueDate() != null && task.getDueDate().isBefore(LocalDateTime.now());
 
-            if (task.isUrgent() || isPastDue) {
+            if (task.isUrgent(urgentThresholdHours) || isPastDue) {
                 urgentLayout.add(createTaskCard(task));
                 urgentCount++;
             } else {
@@ -268,7 +270,7 @@ public class TaskCardList extends VerticalLayout {
     }
 
     private TaskCard createTaskCard(Task task) {
-        TaskCard card = new TaskCard(task, this.onComplete, this.onDelete);
+        TaskCard card = new TaskCard(task, this.onComplete, this.onDelete, this.urgentThresholdHours);
         card.getStyle().set("cursor", "pointer");
         card.addClickListener(click -> {
             if (onCardClick != null) {

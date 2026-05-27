@@ -21,11 +21,13 @@ public class TaskCard extends VerticalLayout {
     private final Task task;
     private final Consumer<Task> onComplete;
     private final Consumer<Task> onDelete;
+    private final int urgentThresholdHours;
 
-    public TaskCard(Task task, Consumer<Task> onComplete, Consumer<Task> onDelete) {
+    public TaskCard(Task task, Consumer<Task> onComplete, Consumer<Task> onDelete, int urgentThresholdHours) {
         this.task = task;
         this.onComplete = onComplete;
         this.onDelete = onDelete;
+        this.urgentThresholdHours = urgentThresholdHours;
 
         applyBaseStyling();
 
@@ -44,7 +46,7 @@ public class TaskCard extends VerticalLayout {
 
         boolean isCompleted = task.isCompleted();
         boolean isPastDue = task.getDueDate() != null && task.getDueDate().isBefore(LocalDateTime.now()) && !isCompleted;
-        boolean isUrgent = task.isUrgent() && !isCompleted;
+        boolean isUrgent = task.isUrgent(urgentThresholdHours) && !isCompleted;
 
         String cardBackground = "#ffffff";
         if (isCompleted) {
@@ -58,7 +60,7 @@ public class TaskCard extends VerticalLayout {
         //this is base styling that applies to all cards regardless of status, the background color is determined by the status logic above
         getStyle().set("border", "1px solid #dcdcdc");
         getStyle().set("border-radius", "12px");
-        getStyle().set("padding", "14px"); 
+        getStyle().set("padding", "14px");
         getStyle().set("background-color", cardBackground);
         getStyle().set("box-shadow", "0 4px 6px rgba(0, 0, 0, 0.1)");
         getStyle().set("transition", "all 0.2s ease-in-out");
@@ -75,7 +77,7 @@ public class TaskCard extends VerticalLayout {
 
         setWidthFull();
         setSpacing(false);
-        this.setMinHeight("140px"); 
+        this.setMinHeight("140px");
     }
 
     private VerticalLayout createTopContent() {
@@ -83,7 +85,7 @@ public class TaskCard extends VerticalLayout {
         HorizontalLayout header = new HorizontalLayout();
         header.setWidthFull();
         header.setJustifyContentMode(JustifyContentMode.END);
-        header.setMinHeight("28px"); 
+        header.setMinHeight("28px");
 
         if (task.getSubject() != null && !task.getSubject().isEmpty()) {
             Span subjectPill = new Span(task.getSubject());
@@ -110,7 +112,7 @@ public class TaskCard extends VerticalLayout {
         title.getStyle().set("margin-bottom", "4px");
         title.getStyle().set("padding-right", "50px");
         topContent.add(header, title);
-        
+
         if (task.getDescription() != null && !task.getDescription().trim().isEmpty()) {
             Paragraph description = new Paragraph(task.getDescription());
             description.getStyle().set("color", "#666666");
@@ -153,11 +155,11 @@ public class TaskCard extends VerticalLayout {
             actionBtn.getStyle().set("background-color", "#e5e7eb");
             actionIcon.setColor("#4b5563");
             actionBtn.getStyle().set("border", "1px solid #d1d5db");
-            
+
             actionBtn.setTooltipText("Mark as Completed");
 
             actionBtn.getElement().addEventListener("mouseenter", e -> {
-                actionBtn.getStyle().set("background-color", "#22c55e"); 
+                actionBtn.getStyle().set("background-color", "#22c55e");
                 actionIcon.setColor("#ffffff");
                 actionBtn.getStyle().set("border-color", "#22c55e");
             });
@@ -177,11 +179,11 @@ public class TaskCard extends VerticalLayout {
             actionBtn.getStyle().set("background-color", "#e5e7eb");
             actionIcon.setColor("#4b5563");
             actionBtn.getStyle().set("border", "1px solid #d1d5db");
-            
+
             actionBtn.setTooltipText("Permanently Delete Task");
 
             actionBtn.getElement().addEventListener("mouseenter", e -> {
-                actionBtn.getStyle().set("background-color", "#ef4444"); 
+                actionBtn.getStyle().set("background-color", "#ef4444");
                 actionIcon.setColor("#ffffff");
                 actionBtn.getStyle().set("border-color", "#ef4444");
             });
@@ -204,7 +206,7 @@ public class TaskCard extends VerticalLayout {
         actionBtn.getStyle().set("transform", "translateY(-50%)");
         actionBtn.getStyle().set("z-index", "10");
         actionBtn.getStyle().set("transition", "all 0.2s ease");
-        
+
         return actionBtn;
     }
 
@@ -225,7 +227,7 @@ public class TaskCard extends VerticalLayout {
     private Span createStatusBadge() {
         boolean isCompleted = task.isCompleted();
         boolean isPastDue = task.getDueDate() != null && task.getDueDate().isBefore(LocalDateTime.now()) && !isCompleted;
-        boolean isUrgent = task.isUrgent() && !isCompleted;
+        boolean isUrgent = task.isUrgent(urgentThresholdHours) && !isCompleted;
 
         Span statusBadge = new Span();
         statusBadge.getStyle().set("padding", "4px 10px");
@@ -258,16 +260,16 @@ public class TaskCard extends VerticalLayout {
         if (hexColor == null || !hexColor.startsWith("#") || hexColor.length() != 7) return "#111827";
         try {
             int hex = Integer.parseInt(hexColor.substring(1), 16);
-            
+
             // Extract R, G, and B using bit shifting
             int r = (hex & 0xFF0000) >> 16;
             int g = (hex & 0xFF00) >> 8;
             int b = (hex & 0xFF);
-            
+
             double brightness = (r * 299 + g * 587 + b * 114) / 1000.0;
             return brightness < 128 ? "#ffffff" : "#111827";
-        } catch (Exception e) { 
-            return "#111827"; 
+        } catch (Exception e) {
+            return "#111827";
         }
     }
 }
