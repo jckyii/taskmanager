@@ -1,7 +1,9 @@
 package com.jry.base.ui.views;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -40,6 +42,11 @@ public class Tasks extends VerticalLayout {
     private final ApplicationUser currentUser;
     private TaskCardList grid;
 
+    // Filter selects are now fields so reloadTasks() can repopulate them when the
+    // underlying tasks change (e.g. a new task introduces a brand-new category).
+    private final Select<String> categoryFilter = new Select<>();
+    private final Select<String> subjectFilter = new Select<>();
+
     public Tasks(TaskRepository taskRepo, UserRepository userRepo, AuthenticationContext authContext) {
         this.taskRepo = taskRepo;
 
@@ -54,7 +61,6 @@ public class Tasks extends VerticalLayout {
         //         font matching the other views, and the action button on the right).
         //         Sign Out lives in the drawer footer now, so it's no longer here. ---
 
-        // New Task now opens a dialog HUD instead of navigating to a page.
         Button newTaskBtn = new Button("New Task", e ->
                 TaskDialog.openForNew(taskRepo, currentUser, this::reloadTasks));
         newTaskBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -77,7 +83,6 @@ public class Tasks extends VerticalLayout {
             reloadTasks();
             showTaskDeletedBanner();
         });
-        // Clicking a card now opens an edit dialog HUD instead of navigating to the detail page.
         grid.setOnCardClick(task ->
                 TaskDialog.openForEdit(taskRepo, currentUser, task, this::reloadTasks));
 
@@ -88,24 +93,14 @@ public class Tasks extends VerticalLayout {
         searchField.setClearButtonVisible(true);
         searchField.setValueChangeMode(ValueChangeMode.EAGER);
 
-        Select<String> categoryFilter = new Select<>();
-        categoryFilter.setItems("All Categories", "Work", "School", "Home", "Casual", "Uncategorized");
+        // Filter selects start with "All ..." selected; their items are populated by the
+        // shared helper below (which also drives reloadTasks() after edits).
         categoryFilter.setValue("All Categories");
-
-        Select<String> subjectFilter = new Select<>();
-        List<String> subjects = new ArrayList<>();
-        subjects.add("All Subjects");
-        allTasksInDatabase.stream()
-                .map(Task::getSubject)
-                .filter(s -> s != null && !s.isEmpty())
-                .distinct()
-                .sorted()
-                .forEach(subjects::add);
-        subjectFilter.setItems(subjects);
         subjectFilter.setValue("All Subjects");
+        repopulateFilters(allTasksInDatabase);
 
         Select<String> groupByFilter = new Select<>();
-        groupByFilter.setItems("Group by Status", "Group by Date", "Group by Subject");
+        groupByFilter.setItems("Group by Status", "Group by Date", "Group by Subject", "Group by Category");
 
         String savedGroupBy = (String) VaadinSession.getCurrent().getAttribute("savedGroupBy");
         if (savedGroupBy != null) {
@@ -132,22 +127,61 @@ public class Tasks extends VerticalLayout {
         grid.filter(searchField.getValue(), categoryFilter.getValue(), subjectFilter.getValue(), groupByFilter.getValue());
 
         // --- 7. FINAL ASSEMBLY ---
-        // Use full WIDTH but let the view's HEIGHT grow with its content. Using setSizeFull()
-        // here clamps the view to the viewport height, so when the cards overflowed, the
-        // view's own background stopped short of them (the "page ends before the cards" bug).
-        // Letting height be content-driven means the background always extends past the last card.
         setWidthFull();
         setHeightFull();
         getStyle().set("box-sizing", "border-box");
         setPadding(true);
-        // breathing room so the last card clears the bottom edge of the scroll area
         getStyle().set("padding-bottom", "48px");
         add(header, toolbar, grid);
     }
 
-    /** Re-reads this user's tasks from the DB and refreshes the card list. */
+    /**
+     * Rebuilds the category and subject filter dropdowns from the supplied task list.
+     * "All Categories"/"All Subjects" are always first; "Uncategorized" is always present
+     * in the category list as a stable landmark; remaining options are derived from the
+     * actual tasks and sorted. Preserves the user's current selection if it still exists.
+     */
+    private void repopulateFilters(List<Task> tasks) {
+        // --- Categories: always include "Uncategorized" as a stable option ---
+        Set<String> categorySet = new LinkedHashSet<>();
+        categorySet.add("Uncategorized");
+        tasks.stream()
+                .map(Task::getCategory)
+                .map(c -> (c == null || c.isEmpty()) ? "Uncategorized" : c)
+                .forEach(categorySet::add);
+        List<String> sortedCategories = new ArrayList<>(categorySet);
+        sortedCategories.sort(String::compareToIgnoreCase);
+
+        List<String> categoryItems = new ArrayList<>();
+        categoryItems.add("All Categories");
+        categoryItems.addAll(sortedCategories);
+
+        String currentCategory = categoryFilter.getValue();
+        categoryFilter.setItems(categoryItems);
+        // Preserve the user's selection if it's still valid; otherwise fall back to "All".
+        categoryFilter.setValue(categoryItems.contains(currentCategory) ? currentCategory : "All Categories");
+
+        // --- Subjects: data-driven only (no special always-present entry) ---
+        List<String> subjectItems = new ArrayList<>();
+        subjectItems.add("All Subjects");
+        tasks.stream()
+                .map(Task::getSubject)
+                .filter(s -> s != null && !s.isEmpty())
+                .distinct()
+                .sorted()
+                .forEach(subjectItems::add);
+
+        String currentSubject = subjectFilter.getValue();
+        subjectFilter.setItems(subjectItems);
+        subjectFilter.setValue(subjectItems.contains(currentSubject) ? currentSubject : "All Subjects");
+    }
+
+    /** Re-reads this user's tasks from the DB and refreshes the card list AND the filter
+     *  dropdowns, so newly created or edited categories/subjects show up immediately. */
     private void reloadTasks() {
-        grid.refresh(taskRepo.findByUser(currentUser));
+        List<Task> latest = taskRepo.findByUser(currentUser);
+        grid.refresh(latest);
+        repopulateFilters(latest);
     }
 
     private void showTaskCompletedBanner() {

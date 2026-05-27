@@ -135,6 +135,8 @@ public class TaskCardList extends VerticalLayout {
             renderGroupByDate(activeTasks);
         } else if ("Group by Subject".equals(groupBy)) {
             renderGroupBySubject(activeTasks);
+        } else if ("Group by Category".equals(groupBy)) {
+            renderGroupByCategory(activeTasks);
         } else {
             renderGroupByStatus(activeTasks);
         }
@@ -256,6 +258,50 @@ public class TaskCardList extends VerticalLayout {
             VerticalLayout noSubLayout = createInnerLayout();
             for(Task t : noSubjectTasks) noSubLayout.add(createTaskCard(t));
             add(createDetailsBar("No Subject", noSubjectTasks.size(), "#4b5563", "#e5e7eb", noSubLayout, true));
+        }
+    }
+
+    // ==========================================
+    // VIEW 4: GROUP BY CATEGORY
+    // ==========================================
+    private void renderGroupByCategory(List<Task> activeTasks) {
+        // Distinct, sorted list of categories actually present on the user's tasks
+        // (treating null/empty as "Uncategorized"). Only categories that have tasks are
+        // rendered as accordions — empty categories are intentionally omitted (less clutter).
+        List<String> allKnownCategories = allTasks.stream()
+                .map(Task::getCategory)
+                .map(c -> (c == null || c.isEmpty()) ? "Uncategorized" : c)
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+
+        for (String category : allKnownCategories) {
+            VerticalLayout categoryLayout = createInnerLayout();
+            int taskCount = 0;
+
+            for (Task task : activeTasks) {
+                String taskCategory = (task.getCategory() == null || task.getCategory().isEmpty())
+                        ? "Uncategorized"
+                        : task.getCategory();
+                if (category.equals(taskCategory)) {
+                    categoryLayout.add(createTaskCard(task));
+                    taskCount++;
+                }
+            }
+
+            // Skip empty categories — only show ones with at least one active task.
+            if (taskCount > 0) {
+                String bgColor = "#fef3c7"; // default light yellow, matches Task's default category color
+                Optional<Task> firstTask = allTasks.stream()
+                        .filter(t -> {
+                            String tc = (t.getCategory() == null || t.getCategory().isEmpty()) ? "Uncategorized" : t.getCategory();
+                            return category.equals(tc) && t.getCategoryColor() != null;
+                        })
+                        .findFirst();
+                if (firstTask.isPresent()) bgColor = firstTask.get().getCategoryColor();
+
+                add(createDetailsBar(category, taskCount, "#111827", bgColor, categoryLayout, true));
+            }
         }
     }
 
