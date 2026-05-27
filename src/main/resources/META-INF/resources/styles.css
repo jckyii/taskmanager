@@ -1,4 +1,49 @@
+
+
 /* Add your styles here */
+
+
+vaadin-dialog-overlay:not(vaadin-tooltip, vaadin-slider-bubble)::part(overlay) {
+    border-radius: var(--vaadin-radius-l, 28px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+}
+
+vaadin-dialog-overlay::part(backdrop) {
+    background-color: rgba(0, 0, 0, 0.55);
+}
+
+/* ---- Fix: page background ends before the task cards ----
+   The App Layout's content area has min-height:100% and does not grow
+   with overflowing content (confirmed in DevTools). Allow it to grow so
+   its background extends past the last card. This targets the single
+   content child of vaadin-app-layout, the same element DevTools showed. */
+vaadin-app-layout > :nth-child(1 of :not([slot])):nth-last-child(1 of :not([slot])) {
+    height: auto !important;
+    min-height: 100%;
+}
+
+/* ============================================================
+   Calendar: make the day-cell grid lines clearer.
+   FullCalendar renders its own grid with .fc-* classes. v6/v7
+   support the --fc-border-color custom property; the direct
+   border rules below are a fallback in case the property is
+   overridden by the Aura theme.
+   ============================================================ */
+
+/* Preferred: FullCalendar's own border-color variable */
+full-calendar,
+.fc {
+    --fc-border-color: #c4c8d0;
+}
+
+/* Fallback: stronger, slightly thicker cell borders */
+full-calendar .fc-scrollgrid,
+full-calendar .fc-scrollgrid td,
+full-calendar .fc-scrollgrid th,
+full-calendar .fc-daygrid-day {
+    border-color: #c4c8d0 !important;
+}
+
 
 .app-logo {
     border-radius: min(40%, var(--vaadin-radius-m));
@@ -13,17 +58,4 @@
 .app-footer {
     color: var(--vaadin-text-color-secondary);
     font-size: var(--aura-font-size-s);
-}
-
-/* TODO: This is only for demo purposes. You can delete it. */
-vaadin-side-nav:has(vaadin-side-nav-item:only-child)::after {
-    display: block;
-    content: "More menu items will appear here when you add more views.";
-    font-size: var(--aura-font-size-s);
-    color: var(--vaadin-text-color-secondary);
-    box-sizing: border-box;
-    padding: 1em;
-    max-width: 14em;
-    min-width: 100%;
-    white-space: normal;
 }

@@ -22,6 +22,7 @@ public class TaskCardList extends VerticalLayout {
     private final List<Task> allTasks;
     private Consumer<Task> onDelete;
     private Consumer<Task> onComplete;
+    private Consumer<Task> onCardClick;
 
     public TaskCardList(List<Task> allTasks) {
         this.allTasks = allTasks;
@@ -38,6 +39,15 @@ public class TaskCardList extends VerticalLayout {
 
     public void setOnComplete(Consumer<Task> onComplete) {
         this.onComplete = onComplete;
+    }
+
+    /**
+     * Optional: when set, clicking a card fires this callback (e.g. to open an edit dialog)
+     * instead of navigating to the task's detail page. When not set, cards fall back to
+     * navigating to "tasks/{id}".
+     */
+    public void setOnCardClick(Consumer<Task> onCardClick) {
+        this.onCardClick = onCardClick;
     }
 
 
@@ -260,7 +270,13 @@ public class TaskCardList extends VerticalLayout {
     private TaskCard createTaskCard(Task task) {
         TaskCard card = new TaskCard(task, this.onComplete, this.onDelete);
         card.getStyle().set("cursor", "pointer");
-        card.addClickListener(click -> card.getUI().ifPresent(ui -> ui.navigate("tasks/" + task.getId())));
+        card.addClickListener(click -> {
+            if (onCardClick != null) {
+                onCardClick.accept(task);
+            } else {
+                card.getUI().ifPresent(ui -> ui.navigate("tasks/" + task.getId()));
+            }
+        });
         return card;
     }
 
