@@ -10,10 +10,11 @@ import com.jry.backend.entities.Task;
 import com.jry.backend.entities.TaskRepository;
 import com.jry.backend.entities.UserRepository;
 import com.jry.base.ui.components.TaskCardList;
+import com.jry.base.ui.components.TaskDialog;
+import com.jry.base.ui.components.ViewToolbar;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
-import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -24,6 +25,7 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 
@@ -32,37 +34,34 @@ import jakarta.annotation.security.PermitAll;
 @PermitAll
 @Route("")
 @PageTitle("My Tasks")
+@Menu(order = 0, title = "My Tasks", icon = "vaadin:tasks")
 public class Tasks extends VerticalLayout {
 
+    private final TaskRepository taskRepo;
+    private final ApplicationUser currentUser;
+    private TaskCardList grid;
+
     public Tasks(TaskRepository taskRepo, UserRepository userRepo, AuthenticationContext authContext) {
+        this.taskRepo = taskRepo;
 
-        // --- 1. CHECK FOR RELOAD BANNERS ---
-        if (Boolean.TRUE.equals(VaadinSession.getCurrent().getAttribute("showCompleteBanner"))) {
-            showTaskCompletedBanner();
-        }
+        // --- 1. GET THE LOGGED IN USER ---
+        String userEmail = authContext.getAuthenticatedUser(UserDetails.class)
+                .orElseThrow(() -> new IllegalStateException("No authenticated user in session"))
+                .getUsername();
+        this.currentUser = userRepo.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalStateException("No account found for email: " + userEmail));
 
-        if (Boolean.TRUE.equals(VaadinSession.getCurrent().getAttribute("showDeleteBanner"))) {
-            showTaskDeletedBanner();
-        }
+        // --- 2. HEADER (via ViewToolbar, so it has the drawer toggle + consistent title
+        //         font matching the other views, and the action buttons on the right). ---
 
-        // --- 2. GET THE LOGGED IN USER ---
-        String userEmail = authContext.getAuthenticatedUser(UserDetails.class).get().getUsername();
-        ApplicationUser currentUser = userRepo.findByEmail(userEmail).get();
-
-        // --- 3. HEADER LAYOUT (WITH FIXED LOGOUT BUTTON) ---
-        H2 pageTitle = new H2("Welcome, " + currentUser.getDisplayName());
-        pageTitle.getStyle().set("margin-top", "0");
-
-        Button newTaskBtn = new Button("New Task", e -> {
-            getUI().ifPresent(ui -> ui.navigate("tasks/new"));
-        });
+        // New Task now opens a dialog HUD instead of navigating to a page.
+        Button newTaskBtn = new Button("New Task", e ->
+                TaskDialog.openForNew(taskRepo, currentUser, this::reloadTasks));
         newTaskBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        // FIX: Removed "Tertiary" so it actually looks like a framed button.
-        // Added LUMO_ERROR so it has a nice, clean red text/border to warn users it's an exit action.
         Button logoutBtn = new Button("Sign Out", VaadinIcon.SIGN_OUT.create());
         logoutBtn.addThemeVariants(ButtonVariant.LUMO_ERROR);
-        logoutBtn.getStyle().set("cursor", "pointer"); // Shows the clicky-finger on hover
+        logoutBtn.getStyle().set("cursor", "pointer");
 
         logoutBtn.addClickListener(e -> {
             ConfirmDialog dialog = new ConfirmDialog();
@@ -72,39 +71,34 @@ public class Tasks extends VerticalLayout {
             dialog.setCancelText("Cancel");
             dialog.setConfirmText("Sign Out");
             dialog.setConfirmButtonTheme("error primary");
-            dialog.addConfirmListener(event -> {
-                authContext.logout();
-            });
+            dialog.addConfirmListener(event -> authContext.logout());
             dialog.open();
         });
 
-        HorizontalLayout headerButtons = new HorizontalLayout(newTaskBtn, logoutBtn);
-        headerButtons.setAlignItems(Alignment.CENTER);
-        headerButtons.getStyle().set("gap", "12px"); // Adds a little breathing room between the buttons
+        ViewToolbar header = new ViewToolbar("Welcome, " + currentUser.getDisplayName(),
+                ViewToolbar.group(newTaskBtn, logoutBtn));
 
-        HorizontalLayout header = new HorizontalLayout(pageTitle, headerButtons);
-        header.setWidthFull();
-        header.setAlignItems(Alignment.CENTER);
-        header.setJustifyContentMode(JustifyContentMode.BETWEEN);
-
-        // --- 4. FETCH DATA ---
+        // --- 3. FETCH DATA ---
         List<Task> allTasksInDatabase = taskRepo.findByUser(currentUser);
 
-        // --- 5. BUILD THE GRID ---
-        TaskCardList grid = new TaskCardList(allTasksInDatabase);
+        // --- 4. BUILD THE GRID ---
+        grid = new TaskCardList(allTasksInDatabase);
         grid.setOnComplete(taskToComplete -> {
-                    taskToComplete.setCompleted(true);
-                    taskRepo.save(taskToComplete);
-                    grid.refresh(taskRepo.findByUser(currentUser));
-                    showTaskCompletedBanner();
-                });
+            taskToComplete.setCompleted(true);
+            taskRepo.save(taskToComplete);
+            reloadTasks();
+            showTaskCompletedBanner();
+        });
         grid.setOnDelete(taskToDelete -> {
-                    taskRepo.delete(taskToDelete);
-                    grid.refresh(taskRepo.findByUser(currentUser));
-                    showTaskDeletedBanner();
-                });
+            taskRepo.delete(taskToDelete);
+            reloadTasks();
+            showTaskDeletedBanner();
+        });
+        // Clicking a card now opens an edit dialog HUD instead of navigating to the detail page.
+        grid.setOnCardClick(task ->
+                TaskDialog.openForEdit(taskRepo, currentUser, task, this::reloadTasks));
 
-        // --- 6. BUILD THE TOOLBAR ---
+        // --- 5. BUILD THE TOOLBAR ---
         TextField searchField = new TextField();
         searchField.setPlaceholder("Search tasks...");
         searchField.setPrefixComponent(VaadinIcon.SEARCH.create());
@@ -112,7 +106,7 @@ public class Tasks extends VerticalLayout {
         searchField.setValueChangeMode(ValueChangeMode.EAGER);
 
         Select<String> categoryFilter = new Select<>();
-        categoryFilter.setItems("All Categories", "Work", "School", "Home", "Uncategorized");
+        categoryFilter.setItems("All Categories", "Work", "School", "Home", "Casual", "Uncategorized");
         categoryFilter.setValue("All Categories");
 
         Select<String> subjectFilter = new Select<>();
@@ -142,7 +136,7 @@ public class Tasks extends VerticalLayout {
         toolbar.getStyle().set("margin-top", "16px");
         toolbar.getStyle().set("margin-bottom", "16px");
 
-        // --- 7. WIRE TOOLBAR TO GRID ---
+        // --- 6. WIRE TOOLBAR TO GRID ---
         searchField.addValueChangeListener(e -> grid.filter(searchField.getValue(), categoryFilter.getValue(), subjectFilter.getValue(), groupByFilter.getValue()));
         categoryFilter.addValueChangeListener(e -> grid.filter(searchField.getValue(), categoryFilter.getValue(), subjectFilter.getValue(), groupByFilter.getValue()));
         subjectFilter.addValueChangeListener(e -> grid.filter(searchField.getValue(), categoryFilter.getValue(), subjectFilter.getValue(), groupByFilter.getValue()));
@@ -154,10 +148,23 @@ public class Tasks extends VerticalLayout {
 
         grid.filter(searchField.getValue(), categoryFilter.getValue(), subjectFilter.getValue(), groupByFilter.getValue());
 
-        // --- 8. FINAL ASSEMBLY ---
-        setSizeFull();
+        // --- 7. FINAL ASSEMBLY ---
+        // Use full WIDTH but let the view's HEIGHT grow with its content. Using setSizeFull()
+        // here clamps the view to the viewport height, so when the cards overflowed, the
+        // view's own background stopped short of them (the "page ends before the cards" bug).
+        // Letting height be content-driven means the background always extends past the last card.
+        setWidthFull();
+        setHeightFull();
+        getStyle().set("box-sizing", "border-box");
         setPadding(true);
+        // breathing room so the last card clears the bottom edge of the scroll area
+        getStyle().set("padding-bottom", "48px");
         add(header, toolbar, grid);
+    }
+
+    /** Re-reads this user's tasks from the DB and refreshes the card list. */
+    private void reloadTasks() {
+        grid.refresh(taskRepo.findByUser(currentUser));
     }
 
     private void showTaskCompletedBanner() {
@@ -165,15 +172,12 @@ public class Tasks extends VerticalLayout {
         completeBanner.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         completeBanner.setPosition(Notification.Position.TOP_CENTER);
         completeBanner.setDuration(3000);
-        VaadinSession.getCurrent().setAttribute("showCompleteBanner", null);
     }
 
-        private void showTaskDeletedBanner() {
-            Notification deletedBanner = Notification.show("Task permanently deleted.");
-            deletedBanner.addThemeVariants(NotificationVariant.LUMO_ERROR);
-            deletedBanner.setPosition(Notification.Position.TOP_CENTER);
-            deletedBanner.setDuration(3000);
-            VaadinSession.getCurrent().setAttribute("showDeleteBanner", null);
-        }
-
+    private void showTaskDeletedBanner() {
+        Notification deletedBanner = Notification.show("Task permanently deleted.");
+        deletedBanner.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        deletedBanner.setPosition(Notification.Position.TOP_CENTER);
+        deletedBanner.setDuration(3000);
+    }
 }

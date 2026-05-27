@@ -71,6 +71,12 @@ public class TaskForm extends VerticalLayout {
         //handles setup
         HorizontalLayout categoryLayout = createCategoryLayout();
         HorizontalLayout subjectLayout = createSubjectLayout();
+        // Place Category and Subject side by side on one row (was stacked).
+        categoryLayout.setWidthFull();
+        subjectLayout.setWidthFull();
+        HorizontalLayout categoryAndSubject = new HorizontalLayout(categoryLayout, subjectLayout);
+        categoryAndSubject.setWidthFull();
+        categoryAndSubject.setFlexGrow(1, categoryLayout, subjectLayout);
 
 
         binder.bind(completedCheckbox, Task::isCompleted, Task::setCompleted);
@@ -80,7 +86,7 @@ public class TaskForm extends VerticalLayout {
         binder.bind(categorySelect, Task::getCategory, Task::setCategory);
 
         formLayout.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
-        formLayout.add(completedCheckbox, title, categoryLayout, subjectLayout, description, dateLayout);
+        formLayout.add(completedCheckbox, title, categoryAndSubject, description, dateLayout);
 
         configureButtons();
         add(formLayout, new HorizontalLayout(saveBtn, cancelBtn));
