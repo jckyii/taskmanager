@@ -80,6 +80,13 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- Email sending (JavaMailSender) for verification emails. Uses SMTP via Gmail
+             (see spring.mail.* properties in application.properties). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- FullCalendar for Flow (v7 line = Vaadin 25 / Java 21+).
              Resolved from the vaadin-directory repository declared below. -->
         <dependency>

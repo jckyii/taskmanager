@@ -74,9 +74,9 @@ public class Login extends VerticalLayout implements BeforeEnterObserver {
         loginBtn.addClickListener(e -> {
             getElement().executeJs(
                     "document.getElementById('hidden-user').value = $0;" +
-                    "document.getElementById('hidden-pass').value = $1;" +
-                    "document.getElementById('hidden-remember').checked = $2;" +
-                    "document.getElementById('login-form').submit();",
+                            "document.getElementById('hidden-pass').value = $1;" +
+                            "document.getElementById('hidden-remember').checked = $2;" +
+                            "document.getElementById('login-form').submit();",
                     email.getValue(), password.getValue(), rememberMe.getValue() // Pass email value here
             );
         });

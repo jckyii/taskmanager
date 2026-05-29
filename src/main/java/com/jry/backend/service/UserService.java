@@ -22,16 +22,25 @@ public class UserService implements UserDetailsService {
     }
 
     // --- 1. NEW: Require email when creating an account ---
-    public void createUser(String username, String email, String rawPassword) {
+    public ApplicationUser createUser(String username, String email, String rawPassword) {
         String hashedPassword = passwordEncoder.encode(rawPassword);
         ApplicationUser newUser = new ApplicationUser(username, hashedPassword);
         newUser.setEmail(email); // Set the email on the user entity
-        userRepo.save(newUser);
+        // Brand-new users are NOT enabled until they verify their email. The Java-level
+        // default on the entity is already false, but setting it here makes the intent
+        // explicit at the call site.
+        newUser.setEnabled(false);
+        return userRepo.save(newUser);
     }
 
     // --- 2. NEW: Check if the email is already registered ---
     public boolean emailExists(String email) {
         return userRepo.findByEmail(email).isPresent();
+    }
+
+    /** Lookup helper used by the resend-verification flow on the login page. */
+    public java.util.Optional<ApplicationUser> findByEmail(String email) {
+        return userRepo.findByEmail(email);
     }
 
     // --- 3. THE MAGIC FIX: Spring Security searches by Email now ---
