@@ -120,7 +120,7 @@ public class Task {
     public Instant getCreationDate() {
         return creationDate;
     }
-    
+
     @PrePersist
     protected void onCreate() {
         if (this.creationDate == null) {
@@ -191,18 +191,28 @@ public class Task {
         return getId() != null && getId().equals(other.getId());
     }
 
-    // Helper method to check if the task is due within 48 hours
-    public boolean isUrgent() {
+    // Helper method to check if the task is due within the user's configured urgency
+    // window. Pass the user's threshold (hours) so this method stays free of any
+    // user lookup — keeps the entity simple.
+    public boolean isUrgent(int thresholdHours) {
         // If it's already done, or has no due date, it's not urgent
         if (isCompleted || dueDate == null) {
             return false;
         }
 
-        // Calculate the exact time 2 days from right now
-        LocalDateTime twoDaysFromNow = LocalDateTime.now().plusDays(2);
+        // Calculate the exact time `thresholdHours` from right now
+        LocalDateTime thresholdMoment = LocalDateTime.now().plusHours(thresholdHours);
 
-        // Return true if the due date is BEFORE the 2-day mark
-        return dueDate.isBefore(twoDaysFromNow);
+        // Return true if the due date is BEFORE the threshold moment
+        return dueDate.isBefore(thresholdMoment);
+    }
+
+    /**
+     * Backwards-compatible no-arg variant. Defaults to 48 hours (the old hardcoded
+     * 2-day window). Prefer the parameterized version when you know the user's setting.
+     */
+    public boolean isUrgent() {
+        return isUrgent(48);
     }
 
     @Override
