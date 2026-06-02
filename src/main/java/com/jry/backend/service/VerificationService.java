@@ -208,7 +208,7 @@ public class VerificationService {
     }
 
     private String buildVerificationUrl(String token) {
-        String base = baseUrl == null ? "http://localhost:8080" : baseUrl.replaceAll("/+$", "");
+        String base = baseUrl == null ? "https://taskmanager-gcvv.onrender.com" : baseUrl.replaceAll("/+$", "");
         return base + "/verify?token=" + token;
     }
 }
