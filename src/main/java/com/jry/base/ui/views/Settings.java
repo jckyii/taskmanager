@@ -71,6 +71,10 @@ public class Settings extends VerticalLayout {
     // Urgency
     private final IntegerField urgentThresholdField = new IntegerField("Urgency threshold (hours)");
 
+    // Timezone (searchable IANA picker)
+    private final com.vaadin.flow.component.combobox.ComboBox<String> timezoneField =
+            new com.vaadin.flow.component.combobox.ComboBox<>("Timezone");
+
     // Password change
     private final PasswordField newPasswordField = new PasswordField("New password");
     private final PasswordField confirmPasswordField = new PasswordField("Confirm new password");
@@ -152,7 +156,17 @@ public class Settings extends VerticalLayout {
         urgentThresholdField.setWidth("220px");
         urgentThresholdField.setHelperText("Between 1 and 720 hours");
 
-        VerticalLayout section = new VerticalLayout(heading, blurb, urgentThresholdField);
+        // Timezone picker: searchable list of all IANA zones. Used for "now" comparisons
+        // (urgency, past-due, today/tomorrow labels) and calendar display. Your task due
+        // dates are wall-clock and don't shift when you change this — only "now" does.
+        java.util.List<String> zones = new java.util.ArrayList<>(java.time.ZoneId.getAvailableZoneIds());
+        java.util.Collections.sort(zones);
+        timezoneField.setItems(zones);
+        timezoneField.setWidth("320px");
+        timezoneField.setHelperText("Used to decide what counts as 'now' for urgency and overdue");
+        timezoneField.setClearButtonVisible(false);
+
+        VerticalLayout section = new VerticalLayout(heading, blurb, urgentThresholdField, timezoneField);
         section.setPadding(false);
         section.setSpacing(false);
         return section;
@@ -188,6 +202,10 @@ public class Settings extends VerticalLayout {
         displayNameField.setValue(currentUser.getDisplayName() == null ? "" : currentUser.getDisplayName());
         emailField.setValue(currentUser.getEmail() == null ? "" : currentUser.getEmail());
         urgentThresholdField.setValue(currentUser.getUrgentThresholdHours());
+        // Prefill timezone; if unset, default the picker to the JVM/browser-ish guess so the
+        // user sees a sensible starting value rather than blank.
+        String tz = currentUser.getTimezone();
+        timezoneField.setValue(tz != null && !tz.isBlank() ? tz : java.time.ZoneId.systemDefault().getId());
     }
 
     /** Rebuilds the pending-email-change banner. Hidden if no change is pending; otherwise
@@ -254,6 +272,11 @@ public class Settings extends VerticalLayout {
             hoursChanged = true;
         }
 
+        // Timezone (non-sensitive). ComboBox value is an IANA zone id from the list.
+        String newTz = timezoneField.getValue();
+        boolean tzChanged = newTz != null && !newTz.isBlank()
+                && !newTz.equals(currentUser.getTimezone());
+
         String newEmail = emailField.getValue() == null ? "" : emailField.getValue().trim();
         boolean emailChanged = !newEmail.equalsIgnoreCase(currentUser.getEmail());
         if (emailChanged) {
@@ -299,7 +322,7 @@ public class Settings extends VerticalLayout {
         if (needsReauth) {
             // Apply non-sensitive changes immediately (no point making the user re-auth for those),
             // then prompt for the password before doing the sensitive work.
-            applyNonSensitiveChanges(nameChanged, newName, hoursChanged, hours);
+            applyNonSensitiveChanges(nameChanged, newName, hoursChanged, hours, tzChanged, newTz);
 
             ReauthDialog dlg = new ReauthDialog(currentUser, passwordEncoder, () -> {
                 // Re-auth succeeded; perform the sensitive operations.
@@ -310,17 +333,21 @@ public class Settings extends VerticalLayout {
         }
 
         // ---- 3. No sensitive changes — just apply and notify ----
-        applyNonSensitiveChanges(nameChanged, newName, hoursChanged, hours);
-        notifyOutcome(nameChanged || hoursChanged);
+        applyNonSensitiveChanges(nameChanged, newName, hoursChanged, hours, tzChanged, newTz);
+        notifyOutcome(nameChanged || hoursChanged || tzChanged);
     }
 
     private void applyNonSensitiveChanges(boolean nameChanged, String newName,
-                                          boolean hoursChanged, Integer hours) {
+                                          boolean hoursChanged, Integer hours,
+                                          boolean tzChanged, String newTz) {
         if (nameChanged) {
             userService.updateDisplayName(currentUser, newName);
         }
         if (hoursChanged) {
             userService.updateUrgentThresholdHours(currentUser, hours);
+        }
+        if (tzChanged) {
+            userService.updateTimezone(currentUser, newTz);
         }
         // Refresh the in-memory user so subsequent comparisons see the updated values.
         currentUser = userRepo.findByEmail(currentUser.getEmail()).orElse(currentUser);

@@ -11,6 +11,7 @@ import com.jry.backend.entities.ApplicationUser;
 import com.jry.backend.entities.Task;
 import com.jry.backend.entities.TaskRepository;
 import com.jry.backend.entities.UserRepository;
+import com.jry.backend.service.UserService;
 import com.jry.base.ui.components.TaskCardList;
 import com.jry.base.ui.components.TaskDialog;
 import com.jry.base.ui.components.ViewToolbar;
@@ -19,6 +20,7 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
@@ -39,16 +41,23 @@ import jakarta.annotation.security.PermitAll;
 public class Tasks extends VerticalLayout {
 
     private final TaskRepository taskRepo;
+    private final transient UserService userService;
     private final ApplicationUser currentUser;
     private TaskCardList grid;
+
+    // Banner offering to update the saved timezone when the browser reports a different one.
+    // Hidden until onAttach detects a mismatch (and only once per session).
+    private final VerticalLayout timezoneBanner = new VerticalLayout();
 
     // Filter selects are now fields so reloadTasks() can repopulate them when the
     // underlying tasks change (e.g. a new task introduces a brand-new category).
     private final Select<String> categoryFilter = new Select<>();
     private final Select<String> subjectFilter = new Select<>();
 
-    public Tasks(TaskRepository taskRepo, UserRepository userRepo, AuthenticationContext authContext) {
+    public Tasks(TaskRepository taskRepo, UserRepository userRepo, UserService userService,
+                 AuthenticationContext authContext) {
         this.taskRepo = taskRepo;
+        this.userService = userService;
 
         // --- 1. GET THE LOGGED IN USER ---
         String userEmail = authContext.getAuthenticatedUser(UserDetails.class)
@@ -71,7 +80,7 @@ public class Tasks extends VerticalLayout {
         List<Task> allTasksInDatabase = taskRepo.findByUser(currentUser);
 
         // --- 4. BUILD THE GRID ---
-        grid = new TaskCardList(allTasksInDatabase, currentUser.getUrgentThresholdHours());
+        grid = new TaskCardList(allTasksInDatabase, currentUser.getUrgentThresholdHours(), currentUser.getZoneId());
         grid.setOnComplete(taskToComplete -> {
             taskToComplete.setCompleted(true);
             taskRepo.save(taskToComplete);
@@ -98,6 +107,8 @@ public class Tasks extends VerticalLayout {
         categoryFilter.setValue("All Categories");
         subjectFilter.setValue("All Subjects");
         repopulateFilters(allTasksInDatabase);
+        // Seed the offline read-only cache with the initial load.
+        cacheTasksForOffline(allTasksInDatabase);
 
         Select<String> groupByFilter = new Select<>();
         groupByFilter.setItems("Group by Status", "Group by Date", "Group by Subject", "Group by Category");
@@ -132,7 +143,76 @@ public class Tasks extends VerticalLayout {
         getStyle().set("box-sizing", "border-box");
         setPadding(true);
         getStyle().set("padding-bottom", "48px");
-        add(header, toolbar, grid);
+        timezoneBanner.setPadding(false);
+        timezoneBanner.setSpacing(false);
+        timezoneBanner.setVisible(false);
+        add(timezoneBanner, header, toolbar, grid);
+    }
+
+    @Override
+    protected void onAttach(com.vaadin.flow.component.AttachEvent attachEvent) {
+        super.onAttach(attachEvent);
+        // Only check once per session — once shown or dismissed, don't nag on every navigation.
+        Object handled = VaadinSession.getCurrent().getAttribute("tzBannerHandled");
+        if (Boolean.TRUE.equals(handled)) {
+            return;
+        }
+        // Read the browser's current zone (instant, local JS call) and compare to the stored one.
+        getElement().executeJs("return Intl.DateTimeFormat().resolvedOptions().timeZone;")
+                .then(String.class, browserZone -> {
+                    String storedZone = currentUser.getTimezone();
+                    if (browserZone != null && !browserZone.isBlank()
+                            && storedZone != null && !storedZone.isBlank()
+                            && !browserZone.equals(storedZone)) {
+                        showTimezoneBanner(browserZone);
+                    } else {
+                        // No mismatch (or nothing to compare) — mark handled so we don't recheck.
+                        VaadinSession.getCurrent().setAttribute("tzBannerHandled", Boolean.TRUE);
+                    }
+                });
+    }
+
+    /** Builds and shows the "your device timezone differs" banner with Update / Dismiss. */
+    private void showTimezoneBanner(String browserZone) {
+        timezoneBanner.removeAll();
+
+        Span msg = new Span("Your device's timezone (" + browserZone + ") differs from your account setting ("
+                + currentUser.getTimezone() + ").");
+        msg.getStyle().set("font-size", "14px");
+
+        Button updateBtn = new Button("Update to " + browserZone, e -> {
+            userService.updateTimezone(currentUser, browserZone);
+            VaadinSession.getCurrent().setAttribute("tzBannerHandled", Boolean.TRUE);
+            timezoneBanner.setVisible(false);
+            // Refresh the list so urgency/overdue immediately reflect the new zone.
+            reloadTasks();
+            Notification n = Notification.show("Timezone updated to " + browserZone + ".");
+            n.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            n.setPosition(Notification.Position.TOP_CENTER);
+        });
+        updateBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
+
+        Button dismissBtn = new Button("Keep current", e -> {
+            VaadinSession.getCurrent().setAttribute("tzBannerHandled", Boolean.TRUE);
+            timezoneBanner.setVisible(false);
+        });
+        dismissBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+
+        HorizontalLayout actions = new HorizontalLayout(updateBtn, dismissBtn);
+        actions.setSpacing(true);
+
+        VerticalLayout box = new VerticalLayout(msg, actions);
+        box.setPadding(false);
+        box.setSpacing(false);
+        box.getStyle().set("background-color", "#eff6ff"); // light blue
+        box.getStyle().set("border", "1px solid #93c5fd");
+        box.getStyle().set("border-radius", "10px");
+        box.getStyle().set("padding", "12px 14px");
+        box.getStyle().set("margin-bottom", "12px");
+        box.setWidthFull();
+
+        timezoneBanner.add(box);
+        timezoneBanner.setVisible(true);
     }
 
     /**
@@ -182,6 +262,50 @@ public class Tasks extends VerticalLayout {
         List<Task> latest = taskRepo.findByUser(currentUser);
         grid.refresh(latest);
         repopulateFilters(latest);
+        cacheTasksForOffline(latest);
+    }
+
+    /**
+     * Writes a lightweight JSON snapshot of the user's tasks into the browser's
+     * localStorage, so the offline page can show a READ-ONLY list when there's no
+     * connection. View-only by design: offline editing would require client-side app
+     * logic that Vaadin Flow (server-side) doesn't provide.
+     *
+     * We build the JSON by hand (rather than pull in a JSON library) to keep it simple
+     * and dependency-free. Strings are escaped for safe embedding.
+     */
+    private void cacheTasksForOffline(List<Task> tasks) {
+        StringBuilder json = new StringBuilder("[");
+        for (int i = 0; i < tasks.size(); i++) {
+            Task t = tasks.get(i);
+            if (i > 0) json.append(",");
+            json.append("{")
+                    .append("\"title\":\"").append(jsEscape(t.getTitle())).append("\",")
+                    .append("\"category\":\"").append(jsEscape(
+                            t.getCategory() == null || t.getCategory().isEmpty() ? "Uncategorized" : t.getCategory())).append("\",")
+                    .append("\"subject\":\"").append(jsEscape(t.getSubject() == null ? "" : t.getSubject())).append("\",")
+                    .append("\"completed\":").append(t.isCompleted()).append(",")
+                    .append("\"dueDate\":\"").append(t.getDueDate() == null ? "" : t.getDueDate().toString()).append("\"")
+                    .append("}");
+        }
+        json.append("]");
+
+        // Push the snapshot to the browser and store it. Wrapped in try/catch on the JS
+        // side because localStorage can throw (private mode, quota) and we don't want a
+        // storage hiccup to break the page.
+        getElement().executeJs(
+                "try { window.localStorage.setItem('taskapp.cachedTasks', $0); } catch (e) { console.warn('Offline cache write failed', e); }",
+                json.toString());
+    }
+
+    /** Minimal JSON-string escaper for the handful of fields we cache. */
+    private static String jsEscape(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", " ")
+                .replace("\r", " ")
+                .replace("\t", " ");
     }
 
     private void showTaskCompletedBanner() {

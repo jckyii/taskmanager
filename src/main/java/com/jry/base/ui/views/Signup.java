@@ -45,6 +45,10 @@ public class Signup extends VerticalLayout {
     // Reset to null each time someone returns to a fresh signup state.
     private transient ApplicationUser lastSignedUpUser;
 
+    // Browser-detected IANA timezone (e.g. "America/Vancouver"), captured via JS when the
+    // page loads. Stays null until the browser reports back; createUser handles null safely.
+    private volatile String detectedTimezone;
+
     public Signup(UserService userService, VerificationService verificationService) {
         this.userService = userService;
         this.verificationService = verificationService;
@@ -124,7 +128,8 @@ public class Signup extends VerticalLayout {
             UserDTO dto = new UserDTO();
             if (binder.writeBeanIfValid(dto)) {
                 // Create the user (NOT yet enabled), then send the verification email.
-                ApplicationUser saved = this.userService.createUser(dto.getUsername(), dto.getEmail(), dto.getPassword());
+                ApplicationUser saved = this.userService.createUser(
+                        dto.getUsername(), dto.getEmail(), dto.getPassword(), detectedTimezone);
                 try {
                     this.verificationService.issueAndSendToken(saved);
                     // Remember whom we just signed up so the resend button knows who to re-send to.
@@ -183,5 +188,18 @@ public class Signup extends VerticalLayout {
         getStyle().set("background-color", "var(--lumo-contrast-5pct)"); // Very subtle grey background for the page
 
         add(card);
+    }
+
+    @Override
+    protected void onAttach(com.vaadin.flow.component.AttachEvent attachEvent) {
+        super.onAttach(attachEvent);
+        // Ask the browser for its IANA timezone and send it back to the server, where we
+        // stash it in detectedTimezone for use when the account is created. This runs once
+        // when the page loads; by the time the user fills the form and clicks Sign Up, the
+        // value is almost always already populated. If it somehow isn't, createUser handles
+        // a null timezone gracefully (the user can set it later in Settings).
+        getElement().executeJs(
+                        "return Intl.DateTimeFormat().resolvedOptions().timeZone;")
+                .then(String.class, tz -> this.detectedTimezone = tz);
     }
 }

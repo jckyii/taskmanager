@@ -1,6 +1,5 @@
 package com.jry.base.ui.components;
 
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.function.Consumer;
@@ -22,12 +21,15 @@ public class TaskCard extends VerticalLayout {
     private final Consumer<Task> onComplete;
     private final Consumer<Task> onDelete;
     private final int urgentThresholdHours;
+    private final java.time.ZoneId userZone;
 
-    public TaskCard(Task task, Consumer<Task> onComplete, Consumer<Task> onDelete, int urgentThresholdHours) {
+    public TaskCard(Task task, Consumer<Task> onComplete, Consumer<Task> onDelete,
+                    int urgentThresholdHours, java.time.ZoneId userZone) {
         this.task = task;
         this.onComplete = onComplete;
         this.onDelete = onDelete;
         this.urgentThresholdHours = urgentThresholdHours;
+        this.userZone = userZone;
 
         applyBaseStyling();
 
@@ -45,8 +47,8 @@ public class TaskCard extends VerticalLayout {
         addClassName("task-card");
 
         boolean isCompleted = task.isCompleted();
-        boolean isPastDue = task.getDueDate() != null && task.getDueDate().isBefore(LocalDateTime.now()) && !isCompleted;
-        boolean isUrgent = task.isUrgent(urgentThresholdHours) && !isCompleted;
+        boolean isPastDue = task.isPastDue(userZone);
+        boolean isUrgent = task.isUrgent(urgentThresholdHours, userZone) && !isCompleted;
 
         String cardBackground = "#ffffff";
         if (isCompleted) {
@@ -226,8 +228,8 @@ public class TaskCard extends VerticalLayout {
 
     private Span createStatusBadge() {
         boolean isCompleted = task.isCompleted();
-        boolean isPastDue = task.getDueDate() != null && task.getDueDate().isBefore(LocalDateTime.now()) && !isCompleted;
-        boolean isUrgent = task.isUrgent(urgentThresholdHours) && !isCompleted;
+        boolean isPastDue = task.isPastDue(userZone);
+        boolean isUrgent = task.isUrgent(urgentThresholdHours, userZone) && !isCompleted;
 
         Span statusBadge = new Span();
         statusBadge.getStyle().set("padding", "4px 10px");

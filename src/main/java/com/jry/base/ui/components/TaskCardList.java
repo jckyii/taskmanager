@@ -1,7 +1,6 @@
 package com.jry.base.ui.components;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -24,10 +23,12 @@ public class TaskCardList extends VerticalLayout {
     private Consumer<Task> onComplete;
     private Consumer<Task> onCardClick;
     private final int urgentThresholdHours;
+    private final java.time.ZoneId userZone;
 
-    public TaskCardList(List<Task> allTasks, int urgentThresholdHours) {
+    public TaskCardList(List<Task> allTasks, int urgentThresholdHours, java.time.ZoneId userZone) {
         this.allTasks = allTasks;
         this.urgentThresholdHours = urgentThresholdHours;
+        this.userZone = userZone;
         setWidthFull();
         setPadding(false);
         setSpacing(true);
@@ -152,9 +153,9 @@ public class TaskCardList extends VerticalLayout {
         int urgentCount = 0, ongoingCount = 0;
 
         for (Task task : activeTasks) {
-            boolean isPastDue = task.getDueDate() != null && task.getDueDate().isBefore(LocalDateTime.now());
+            boolean isPastDue = task.isPastDue(userZone);
 
-            if (task.isUrgent(urgentThresholdHours) || isPastDue) {
+            if (task.isUrgent(urgentThresholdHours, userZone) || isPastDue) {
                 urgentLayout.add(createTaskCard(task));
                 urgentCount++;
             } else {
@@ -214,8 +215,8 @@ public class TaskCardList extends VerticalLayout {
             }
 
             String dateLabel = date.format(formatter);
-            if (date.equals(LocalDate.now())) dateLabel = "Today (" + dateLabel + ")";
-            if (date.equals(LocalDate.now().plusDays(1))) dateLabel = "Tomorrow (" + dateLabel + ")";
+            if (date.equals(LocalDate.now(userZone))) dateLabel = "Today (" + dateLabel + ")";
+            if (date.equals(LocalDate.now(userZone).plusDays(1))) dateLabel = "Tomorrow (" + dateLabel + ")";
 
             add(createDetailsBar(dateLabel, tasksForDay.size(), "#1f2937", "#f3f4f6", dayLayout, true));
         }
@@ -316,7 +317,7 @@ public class TaskCardList extends VerticalLayout {
     }
 
     private TaskCard createTaskCard(Task task) {
-        TaskCard card = new TaskCard(task, this.onComplete, this.onDelete, this.urgentThresholdHours);
+        TaskCard card = new TaskCard(task, this.onComplete, this.onDelete, this.urgentThresholdHours, this.userZone);
         card.getStyle().set("cursor", "pointer");
         card.addClickListener(click -> {
             if (onCardClick != null) {
