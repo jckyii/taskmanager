@@ -84,9 +84,13 @@ public class CalendarView extends VerticalLayout {
         // Only render the weeks the month actually needs (no forced empty 6th row), so each
         // visible week row gets more vertical space and the cells look larger.
         calendar.setOption("fixedWeekCount", false);
-        // NOTE: we intentionally do NOT call setTimezone here. With LocalDate-based all-day
-        // entries (see toEntry), keeping the calendar in its default frame avoids the
-        // timezone conversion that was shifting entries off by a day.
+        // We intentionally do NOT call setTimezone here, even though we now have a per-user
+        // timezone available. The calendar's entries are all-day (date-only LocalDate)
+        // entries, which are timezone-independent by nature — a task due "Jun 8" shows on
+        // Jun 8 in any zone. setTimezone only affects timed entries and "today" highlighting,
+        // and re-introducing it risks the date-shift bug we fixed earlier by switching to
+        // LocalDate entries. Per the light-timezone design, the user's zone matters for "now"
+        // comparisons (urgency/past-due, handled in Task/TaskCard), not for calendar display.
         // Fixed height tuned so the whole month fits on a typical screen without scrolling.
         // This is the easy knob: raise it for bigger cells, lower it if it overflows.
         calendar.setHeight("700px");

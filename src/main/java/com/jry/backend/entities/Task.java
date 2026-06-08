@@ -192,19 +192,31 @@ public class Task {
     }
 
     // Helper method to check if the task is due within the user's configured urgency
-    // window. Pass the user's threshold (hours) so this method stays free of any
-    // user lookup — keeps the entity simple.
-    public boolean isUrgent(int thresholdHours) {
+    // window. Pass the user's threshold (hours) AND their timezone — "now" must be
+    // computed in the user's zone, otherwise urgency calculations drift when the server
+    // is in a different zone than the user.
+    public boolean isUrgent(int thresholdHours, java.time.ZoneId userZone) {
         // If it's already done, or has no due date, it's not urgent
         if (isCompleted || dueDate == null) {
             return false;
         }
 
-        // Calculate the exact time `thresholdHours` from right now
-        LocalDateTime thresholdMoment = LocalDateTime.now().plusHours(thresholdHours);
+        // "Now" in the user's wall-clock zone. The due date is already wall-clock
+        // (LocalDateTime), so comparing them directly is the right thing — both are
+        // "what time the user sees on their clock."
+        LocalDateTime nowInUserZone = LocalDateTime.now(userZone);
+        LocalDateTime thresholdMoment = nowInUserZone.plusHours(thresholdHours);
 
         // Return true if the due date is BEFORE the threshold moment
         return dueDate.isBefore(thresholdMoment);
+    }
+
+    /**
+     * Backwards-compatible: threshold without an explicit zone. Falls back to the
+     * server's default zone. Prefer the (int, ZoneId) variant when you have the user.
+     */
+    public boolean isUrgent(int thresholdHours) {
+        return isUrgent(thresholdHours, java.time.ZoneId.systemDefault());
     }
 
     /**
@@ -213,6 +225,17 @@ public class Task {
      */
     public boolean isUrgent() {
         return isUrgent(48);
+    }
+
+    /**
+     * Returns true if the due date has passed, evaluated in the user's timezone.
+     * Pulled out as its own method so callers don't have to recompute "now" themselves.
+     */
+    public boolean isPastDue(java.time.ZoneId userZone) {
+        if (isCompleted || dueDate == null) {
+            return false;
+        }
+        return dueDate.isBefore(LocalDateTime.now(userZone));
     }
 
     @Override

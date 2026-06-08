@@ -22,7 +22,7 @@ public class UserService implements UserDetailsService {
     }
 
     // --- 1. NEW: Require email when creating an account ---
-    public ApplicationUser createUser(String username, String email, String rawPassword) {
+    public ApplicationUser createUser(String username, String email, String rawPassword, String timezone) {
         String hashedPassword = passwordEncoder.encode(rawPassword);
         ApplicationUser newUser = new ApplicationUser(username, hashedPassword);
         newUser.setEmail(email); // Set the email on the user entity
@@ -30,6 +30,11 @@ public class UserService implements UserDetailsService {
         // default on the entity is already false, but setting it here makes the intent
         // explicit at the call site.
         newUser.setEnabled(false);
+        // Browser-detected timezone (may be null if detection failed; that's fine, the
+        // user can set it in Settings and getZoneId() falls back to UTC meanwhile).
+        if (timezone != null && !timezone.isBlank()) {
+            newUser.setTimezone(timezone);
+        }
         return userRepo.save(newUser);
     }
 
@@ -46,7 +51,7 @@ public class UserService implements UserDetailsService {
     // --- 3. THE MAGIC FIX: Spring Security searches by Email now ---
     @Override
     public @Nonnull UserDetails loadUserByUsername(@Nonnull String email) throws UsernameNotFoundException {
-        // Even though the method is called "loadUserByUsername", Vaadin will pass the email 
+        // Even though the method is called "loadUserByUsername", Vaadin will pass the email
         // from the login box into this variable. We just tell it to search the database by email!
         return userRepo.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("No account found with email: " + email));
@@ -67,6 +72,12 @@ public class UserService implements UserDetailsService {
     /** Updates the user's urgency threshold (hours). */
     public void updateUrgentThresholdHours(ApplicationUser user, int hours) {
         user.setUrgentThresholdHours(hours);
+        userRepo.save(user);
+    }
+
+    /** Updates the user's timezone (IANA zone ID like "America/Vancouver"). */
+    public void updateTimezone(ApplicationUser user, String timezone) {
+        user.setTimezone(timezone);
         userRepo.save(user);
     }
 

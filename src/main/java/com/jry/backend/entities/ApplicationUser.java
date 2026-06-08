@@ -50,6 +50,17 @@ public class ApplicationUser implements UserDetails {
     @Column(name = "urgent_threshold_hours")
     private Integer urgentThresholdHours = 48;
 
+    /**
+     * User's IANA timezone (e.g. "America/Vancouver", "Europe/London"). Set from the
+     * browser at signup, overridable from Settings. Used for "now" comparisons (urgency
+     * calculation) and calendar display. Task due dates themselves are wall-clock
+     * LocalDateTime — they don't shift if the user changes timezones, which matches how
+     * deadlines work in practice ("due Friday 11:59 PM" means Friday 11:59 PM wherever
+     * you are). Null-safe getter falls back to UTC for grandfathered users.
+     */
+    @Column(name = "timezone", length = 64)
+    private String timezone;
+
 
     public ApplicationUser() {}
 
@@ -128,5 +139,33 @@ public class ApplicationUser implements UserDetails {
 
     public void setUrgentThresholdHours(int urgentThresholdHours) {
         this.urgentThresholdHours = urgentThresholdHours;
+    }
+
+    /**
+     * Returns the raw timezone string (may be null for grandfathered users).
+     * Use {@link #getZoneId()} for code that needs a guaranteed-non-null ZoneId.
+     */
+    public String getTimezone() {
+        return timezone;
+    }
+
+    public void setTimezone(String timezone) {
+        this.timezone = timezone;
+    }
+
+    /**
+     * Null-safe convenience: returns the user's timezone as a {@link java.time.ZoneId},
+     * defaulting to UTC if unset (grandfathered users from before this column existed).
+     * Bad/unknown zone strings also fall back to UTC rather than throwing.
+     */
+    public java.time.ZoneId getZoneId() {
+        if (timezone == null || timezone.isBlank()) {
+            return java.time.ZoneOffset.UTC;
+        }
+        try {
+            return java.time.ZoneId.of(timezone);
+        } catch (java.time.DateTimeException e) {
+            return java.time.ZoneOffset.UTC;
+        }
     }
 }
