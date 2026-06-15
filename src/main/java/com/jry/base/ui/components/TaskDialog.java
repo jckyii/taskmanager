@@ -44,7 +44,7 @@ public class TaskDialog extends Dialog {
         this.onChanged = onChanged;
 
         setHeaderTitle(isNew ? "New Task" : "Edit Task");
-        setWidth("720px"); // wider, more landscape form
+        setWidth("860px"); // wider to fit category + subject + priority on one row
         // setModality(STRICT) is the non-deprecated equivalent of setModal(true).
         // (Confirmed from the decompiled Dialog source: setModal(true) just calls this.)
         setModality(ModalityMode.STRICT);

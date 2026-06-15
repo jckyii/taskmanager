@@ -61,6 +61,14 @@ public class Task {
     @Column(name = "category_color")
     private String categoryColor = "#fef3c7"; // Default light yellow
 
+    /**
+     * Priority rank: lower number = higher priority. 1 = "1st", 2 = "2nd", 3 = "3rd", etc.
+     * NULL means no priority set (optional field). Stored as an Integer so null is
+     * distinguishable from "1st". Custom tiers (Stage B) append higher numbers.
+     */
+    @Column(name = "priority")
+    private Integer priority;
+
 
     // Add the getter and setter
     public boolean isCompleted() {
@@ -69,6 +77,15 @@ public class Task {
 
     public void setCompleted(boolean completed) {
         isCompleted = completed;
+    }
+
+    /** Priority rank (1=1st, 2=2nd...); null = none. */
+    public Integer getPriority() {
+        return priority;
+    }
+
+    public void setPriority(Integer priority) {
+        this.priority = priority;
     }
 
     public Task() { // To keep Hibernate happy
