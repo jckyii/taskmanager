@@ -44,6 +44,9 @@ public class TaskForm extends VerticalLayout {
 
     private final Select<String> subjectSelect = new Select<>();
     private final Select<String> categorySelect = new Select<>();
+    private final Select<String> prioritySelect = new Select<>();
+
+    private static final String PRIORITY_NONE = "No priority";
 
     private Consumer<Task> onSave;
     private Runnable onCancel;
@@ -71,22 +74,51 @@ public class TaskForm extends VerticalLayout {
         //handles setup
         HorizontalLayout categoryLayout = createCategoryLayout();
         HorizontalLayout subjectLayout = createSubjectLayout();
-        // Place Category and Subject side by side on one row (was stacked).
         categoryLayout.setWidthFull();
         subjectLayout.setWidthFull();
-        HorizontalLayout categoryAndSubject = new HorizontalLayout(categoryLayout, subjectLayout);
-        categoryAndSubject.setWidthFull();
-        categoryAndSubject.setFlexGrow(1, categoryLayout, subjectLayout);
 
+
+        // --- Priority field (optional) with an info icon explaining how it works ---
+        prioritySelect.setLabel("Priority");
+        prioritySelect.setItems(PRIORITY_NONE, "1st", "2nd", "3rd");
+        prioritySelect.setValue(PRIORITY_NONE);
+        prioritySelect.setWidthFull();
+
+        // Info icon with a tooltip explaining the optional priority feature.
+        com.vaadin.flow.component.icon.Icon infoIcon =
+                com.vaadin.flow.component.icon.VaadinIcon.INFO_CIRCLE_O.create();
+        infoIcon.setSize("18px");
+        infoIcon.getStyle().set("color", "var(--lumo-secondary-text-color)");
+        infoIcon.getStyle().set("cursor", "help");
+        infoIcon.getElement().setAttribute("title",
+                "Priority is optional. Lower numbers are more important (1st > 2nd > 3rd). "
+                        + "Tasks are sorted by priority alongside urgency, and you can group by priority "
+                        + "on the main page. Leave as 'No priority' to skip it.");
+
+        com.vaadin.flow.component.orderedlayout.HorizontalLayout priorityRow =
+                new com.vaadin.flow.component.orderedlayout.HorizontalLayout(prioritySelect, infoIcon);
+        priorityRow.setWidthFull();
+        priorityRow.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.END);
+        priorityRow.setFlexGrow(1, prioritySelect);
+
+        // Category, Subject, and Priority all on one row (three across).
+        HorizontalLayout categorySubjectPriority =
+                new HorizontalLayout(categoryLayout, subjectLayout, priorityRow);
+        categorySubjectPriority.setWidthFull();
+        categorySubjectPriority.setFlexGrow(1, categoryLayout, subjectLayout, priorityRow);
 
         binder.bind(completedCheckbox, Task::isCompleted, Task::setCompleted);
         binder.forField(title).asRequired("Please enter a title").bind(Task::getTitle, Task::setTitle);
         binder.bind(description, Task::getDescription, Task::setDescription);
         binder.bind(subjectSelect, Task::getSubject, Task::setSubject);
         binder.bind(categorySelect, Task::getCategory, Task::setCategory);
+        // Priority: convert between the label ("1st") and the rank integer (1); "No priority" -> null.
+        binder.forField(prioritySelect)
+                .withConverter(this::labelToRank, this::rankToLabel)
+                .bind(Task::getPriority, Task::setPriority);
 
         formLayout.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
-        formLayout.add(completedCheckbox, title, categoryAndSubject, description, dateLayout);
+        formLayout.add(completedCheckbox, title, categorySubjectPriority, description, dateLayout);
 
         configureButtons();
         add(formLayout, new HorizontalLayout(saveBtn, cancelBtn));
@@ -343,5 +375,29 @@ public class TaskForm extends VerticalLayout {
         completedCheckbox.setReadOnly(!isEditing);
         saveBtn.setVisible(isEditing);
         cancelBtn.setVisible(isEditing);
+    }
+
+    // --- Priority label <-> rank conversion for the binder ---
+    // Presentation (Select<String>) holds "No priority"/"1st"/"2nd"/"3rd";
+    // model (Task.priority) holds null/1/2/3.
+    private Integer labelToRank(String label) {
+        if (label == null || PRIORITY_NONE.equals(label)) return null;
+        switch (label) {
+            case "1st": return 1;
+            case "2nd": return 2;
+            case "3rd": return 3;
+            default:
+                // Future custom tiers like "4th" — strip the suffix and parse.
+                try {
+                    return Integer.parseInt(label.replaceAll("\\D", ""));
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+        }
+    }
+
+    private String rankToLabel(Integer rank) {
+        if (rank == null) return PRIORITY_NONE;
+        return com.jry.base.ui.components.Priorities.label(rank);
     }
 }

@@ -42,6 +42,21 @@ public class TaskCard extends VerticalLayout {
         expand(topContent);
     }
 
+    /** Small badge showing the priority label ("1st"/"2nd"/"3rd") in the tier's color.
+     *  Placed at the left of the card's top header row, above the title. */
+    private Span createPriorityBadge(int rank) {
+        Span badge = new Span(com.jry.base.ui.components.Priorities.label(rank));
+        badge.getStyle().set("padding", "2px 8px");
+        badge.getStyle().set("border-radius", "10px");
+        badge.getStyle().set("font-size", "11px");
+        badge.getStyle().set("font-weight", "bold");
+        badge.getStyle().set("border", "1px solid rgba(0, 0, 0, 0.12)");
+        badge.getStyle().set("background-color", com.jry.base.ui.components.Priorities.backgroundColor(rank));
+        badge.getStyle().set("color", com.jry.base.ui.components.Priorities.textColor(rank));
+        badge.getStyle().set("white-space", "nowrap");
+        return badge;
+    }
+
     private void applyBaseStyling() {
         this.getStyle().set("position", "relative");
         addClassName("task-card");
@@ -83,11 +98,21 @@ public class TaskCard extends VerticalLayout {
     }
 
     private VerticalLayout createTopContent() {
-        //the subject pill is added in the header to ensure it always appears at the top right corner, even if the description is long
+        // Top header row: priority badge on the LEFT (above the title), subject pill on the RIGHT.
+        // Using BETWEEN keeps badge left + pill right; a spacer ensures the pill stays right
+        // even when one of them is absent.
         HorizontalLayout header = new HorizontalLayout();
         header.setWidthFull();
-        header.setJustifyContentMode(JustifyContentMode.END);
+        header.setJustifyContentMode(JustifyContentMode.BETWEEN);
+        header.setAlignItems(com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER);
         header.setMinHeight("28px");
+
+        // Left slot: priority badge if set, otherwise an empty span to hold the left position.
+        if (task.getPriority() != null) {
+            header.add(createPriorityBadge(task.getPriority()));
+        } else {
+            header.add(new Span()); // empty left placeholder so the pill stays right
+        }
 
         if (task.getSubject() != null && !task.getSubject().isEmpty()) {
             Span subjectPill = new Span(task.getSubject());
@@ -110,7 +135,7 @@ public class TaskCard extends VerticalLayout {
         topContent.setSpacing(false);
 
         H3 title = new H3(task.getTitle());
-        title.getStyle().set("margin-top", "-8px");
+        title.getStyle().set("margin-top", "4px");
         title.getStyle().set("margin-bottom", "4px");
         title.getStyle().set("padding-right", "50px");
         topContent.add(header, title);

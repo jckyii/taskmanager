@@ -138,37 +138,122 @@ public class TaskCardList extends VerticalLayout {
             renderGroupBySubject(activeTasks);
         } else if ("Group by Category".equals(groupBy)) {
             renderGroupByCategory(activeTasks);
+        } else if ("Group by Priority".equals(groupBy)) {
+            renderGroupByPriority(activeTasks);
         } else {
             renderGroupByStatus(activeTasks);
         }
     }
 
     // ==========================================
+    // SORTING HELPERS
+    // ==========================================
+    // Urgency ordering: most overdue / soonest-due first; tasks with no due date last.
+    private java.util.Comparator<Task> byUrgency() {
+        return (a, b) -> {
+            java.time.LocalDateTime da = a.getDueDate();
+            java.time.LocalDateTime db = b.getDueDate();
+            if (da == null && db == null) return 0;
+            if (da == null) return 1;   // no due date sorts after dated tasks
+            if (db == null) return -1;
+            return da.compareTo(db);    // earlier due date = more urgent = first
+        };
+    }
+
+    // Priority ordering: lower rank number first (1st before 2nd); no priority (null) last.
+    private java.util.Comparator<Task> byPriority() {
+        return (a, b) -> {
+            Integer pa = a.getPriority();
+            Integer pb = b.getPriority();
+            if (pa == null && pb == null) return 0;
+            if (pa == null) return 1;   // unprioritized sorts after prioritized
+            if (pb == null) return -1;
+            return Integer.compare(pa, pb);
+        };
+    }
+
+    // Returns a sorted copy of the list (doesn't mutate the input).
+    private List<Task> sortedBy(List<Task> tasks, java.util.Comparator<Task> cmp) {
+        List<Task> copy = new ArrayList<>(tasks);
+        copy.sort(cmp);
+        return copy;
+    }
+
+    // ==========================================
     // VIEW 1: GROUP BY STATUS
     // ==========================================
     private void renderGroupByStatus(List<Task> activeTasks) {
-        VerticalLayout urgentLayout = createInnerLayout();
-        VerticalLayout ongoingLayout = createInnerLayout();
-
-        int urgentCount = 0, ongoingCount = 0;
+        // Split into three buckets: Overdue (past due), Urgent (within threshold but not
+        // past due), and Ongoing (everything else). Overdue and Urgent are separate groups
+        // now (previously combined). Within each, sort by urgency first, then priority.
+        List<Task> overdue = new ArrayList<>();
+        List<Task> urgent = new ArrayList<>();
+        List<Task> ongoing = new ArrayList<>();
 
         for (Task task : activeTasks) {
-            boolean isPastDue = task.isPastDue(userZone);
-
-            if (task.isUrgent(urgentThresholdHours, userZone) || isPastDue) {
-                urgentLayout.add(createTaskCard(task));
-                urgentCount++;
+            if (task.isPastDue(userZone)) {
+                overdue.add(task);
+            } else if (task.isUrgent(urgentThresholdHours, userZone)) {
+                urgent.add(task);
             } else {
-                ongoingLayout.add(createTaskCard(task));
-                ongoingCount++;
+                ongoing.add(task);
             }
         }
 
-        if (urgentCount > 0) {
-            add(createDetailsBar("Urgent / Overdue", urgentCount, "#991b1b", "#fee2e2", urgentLayout, true));
+        java.util.Comparator<Task> within = byUrgency().thenComparing(byPriority());
+
+        if (!overdue.isEmpty()) {
+            VerticalLayout overdueLayout = createInnerLayout();
+            for (Task t : sortedBy(overdue, within)) overdueLayout.add(createTaskCard(t));
+            add(createDetailsBar("Overdue", overdue.size(), "#991b1b", "#fee2e2", overdueLayout, true));
         }
-        if (ongoingCount > 0) {
-            add(createDetailsBar("Ongoing", ongoingCount, "#1e3a8a", "#dbeafe", ongoingLayout, true));
+        if (!urgent.isEmpty()) {
+            VerticalLayout urgentLayout = createInnerLayout();
+            for (Task t : sortedBy(urgent, within)) urgentLayout.add(createTaskCard(t));
+            add(createDetailsBar("Urgent", urgent.size(), "#9a3412", "#ffedd5", urgentLayout, true));
+        }
+        if (!ongoing.isEmpty()) {
+            VerticalLayout ongoingLayout = createInnerLayout();
+            for (Task t : sortedBy(ongoing, within)) ongoingLayout.add(createTaskCard(t));
+            add(createDetailsBar("Ongoing", ongoing.size(), "#1e3a8a", "#dbeafe", ongoingLayout, true));
+        }
+    }
+
+    // ==========================================
+    // VIEW: GROUP BY PRIORITY
+    // ==========================================
+    private void renderGroupByPriority(List<Task> activeTasks) {
+        // Bucket tasks by priority rank; null priorities go into "Unprioritized" (last).
+        java.util.TreeMap<Integer, List<Task>> byRank = new java.util.TreeMap<>();
+        List<Task> unprioritized = new ArrayList<>();
+
+        for (Task task : activeTasks) {
+            Integer rank = task.getPriority();
+            if (rank == null) {
+                unprioritized.add(task);
+            } else {
+                byRank.computeIfAbsent(rank, k -> new ArrayList<>()).add(task);
+            }
+        }
+
+        // Each priority group, in ascending rank order (1st, 2nd, 3rd...), sorted within by urgency.
+        for (java.util.Map.Entry<Integer, List<Task>> entry : byRank.entrySet()) {
+            int rank = entry.getKey();
+            List<Task> group = sortedBy(entry.getValue(), byUrgency());
+            VerticalLayout layout = createInnerLayout();
+            for (Task t : group) layout.add(createTaskCard(t));
+            String label = com.jry.base.ui.components.Priorities.label(rank);
+            add(createDetailsBar(label + " Priority", group.size(),
+                    com.jry.base.ui.components.Priorities.textColor(rank),
+                    com.jry.base.ui.components.Priorities.backgroundColor(rank),
+                    layout, true));
+        }
+
+        // Unprioritized last, sorted by urgency.
+        if (!unprioritized.isEmpty()) {
+            VerticalLayout layout = createInnerLayout();
+            for (Task t : sortedBy(unprioritized, byUrgency())) layout.add(createTaskCard(t));
+            add(createDetailsBar("Unprioritized", unprioritized.size(), "#374151", "#e5e7eb", layout, true));
         }
     }
 
@@ -191,7 +276,7 @@ public class TaskCardList extends VerticalLayout {
         // Draw "No Due Date" first so it doesn't get buried
         if (!noDateTasks.isEmpty()) {
             VerticalLayout noDateLayout = createInnerLayout();
-            for (Task task : noDateTasks) {
+            for (Task task : sortedBy(noDateTasks, byPriority().thenComparing(byUrgency()))) {
                 noDateLayout.add(createTaskCard(task));
             }
             add(createDetailsBar("No Due Date", noDateTasks.size(), "#4b5563", "#e5e7eb", noDateLayout, false));
@@ -206,8 +291,8 @@ public class TaskCardList extends VerticalLayout {
         for (LocalDate date : sortedDates) {
             List<Task> tasksForDay = tasksByDate.get(date);
 
-            // Secondary sort: Sort by exact time within that specific day
-            tasksForDay.sort(Comparator.comparing(Task::getDueDate));
+            // Within a day, sort by priority first, then time-of-day (urgency).
+            tasksForDay = sortedBy(tasksForDay, byPriority().thenComparing(byUrgency()));
 
             VerticalLayout dayLayout = createInnerLayout();
             for (Task task : tasksForDay) {
@@ -234,30 +319,32 @@ public class TaskCardList extends VerticalLayout {
                 .collect(Collectors.toList());
 
         for (String subject : allKnownSubjects) {
-            VerticalLayout subjectLayout = createInnerLayout();
-            int taskCount = 0;
-
+            List<Task> tasksForSubject = new ArrayList<>();
             for (Task task : activeTasks) {
                 if (subject.equals(task.getSubject())) {
-                    subjectLayout.add(createTaskCard(task));
-                    taskCount++;
+                    tasksForSubject.add(task);
                 }
             }
 
             // Only draw the accordion if there are actually active tasks for it
-            if (taskCount > 0) {
+            if (!tasksForSubject.isEmpty()) {
+                VerticalLayout subjectLayout = createInnerLayout();
+                for (Task task : sortedBy(tasksForSubject, byPriority().thenComparing(byUrgency()))) {
+                    subjectLayout.add(createTaskCard(task));
+                }
+
                 String bgColor = "#f3f4f6";
                 Optional<Task> firstTask = allTasks.stream().filter(t -> subject.equals(t.getSubject()) && t.getSubjectColor() != null).findFirst();
                 if (firstTask.isPresent()) bgColor = firstTask.get().getSubjectColor();
 
-                add(createDetailsBar(subject, taskCount, "#111827", bgColor, subjectLayout, true));
+                add(createDetailsBar(subject, tasksForSubject.size(), "#111827", bgColor, subjectLayout, true));
             }
         }
 
         List<Task> noSubjectTasks = activeTasks.stream().filter(t -> t.getSubject() == null || t.getSubject().isEmpty()).collect(Collectors.toList());
         if (!noSubjectTasks.isEmpty()) {
             VerticalLayout noSubLayout = createInnerLayout();
-            for(Task t : noSubjectTasks) noSubLayout.add(createTaskCard(t));
+            for(Task t : sortedBy(noSubjectTasks, byPriority().thenComparing(byUrgency()))) noSubLayout.add(createTaskCard(t));
             add(createDetailsBar("No Subject", noSubjectTasks.size(), "#4b5563", "#e5e7eb", noSubLayout, true));
         }
     }
@@ -277,21 +364,23 @@ public class TaskCardList extends VerticalLayout {
                 .collect(Collectors.toList());
 
         for (String category : allKnownCategories) {
-            VerticalLayout categoryLayout = createInnerLayout();
-            int taskCount = 0;
-
+            List<Task> tasksForCategory = new ArrayList<>();
             for (Task task : activeTasks) {
                 String taskCategory = (task.getCategory() == null || task.getCategory().isEmpty())
                         ? "Uncategorized"
                         : task.getCategory();
                 if (category.equals(taskCategory)) {
-                    categoryLayout.add(createTaskCard(task));
-                    taskCount++;
+                    tasksForCategory.add(task);
                 }
             }
 
             // Skip empty categories — only show ones with at least one active task.
-            if (taskCount > 0) {
+            if (!tasksForCategory.isEmpty()) {
+                VerticalLayout categoryLayout = createInnerLayout();
+                for (Task task : sortedBy(tasksForCategory, byPriority().thenComparing(byUrgency()))) {
+                    categoryLayout.add(createTaskCard(task));
+                }
+
                 String bgColor = "#fef3c7"; // default light yellow, matches Task's default category color
                 Optional<Task> firstTask = allTasks.stream()
                         .filter(t -> {
@@ -301,7 +390,7 @@ public class TaskCardList extends VerticalLayout {
                         .findFirst();
                 if (firstTask.isPresent()) bgColor = firstTask.get().getCategoryColor();
 
-                add(createDetailsBar(category, taskCount, "#111827", bgColor, categoryLayout, true));
+                add(createDetailsBar(category, tasksForCategory.size(), "#111827", bgColor, categoryLayout, true));
             }
         }
     }

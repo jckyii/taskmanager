@@ -107,11 +107,9 @@ public class Tasks extends VerticalLayout {
         categoryFilter.setValue("All Categories");
         subjectFilter.setValue("All Subjects");
         repopulateFilters(allTasksInDatabase);
-        // Seed the offline read-only cache with the initial load.
-        cacheTasksForOffline(allTasksInDatabase);
 
         Select<String> groupByFilter = new Select<>();
-        groupByFilter.setItems("Group by Status", "Group by Date", "Group by Subject", "Group by Category");
+        groupByFilter.setItems("Group by Status", "Group by Date", "Group by Subject", "Group by Category", "Group by Priority");
 
         String savedGroupBy = (String) VaadinSession.getCurrent().getAttribute("savedGroupBy");
         if (savedGroupBy != null) {
@@ -262,50 +260,6 @@ public class Tasks extends VerticalLayout {
         List<Task> latest = taskRepo.findByUser(currentUser);
         grid.refresh(latest);
         repopulateFilters(latest);
-        cacheTasksForOffline(latest);
-    }
-
-    /**
-     * Writes a lightweight JSON snapshot of the user's tasks into the browser's
-     * localStorage, so the offline page can show a READ-ONLY list when there's no
-     * connection. View-only by design: offline editing would require client-side app
-     * logic that Vaadin Flow (server-side) doesn't provide.
-     *
-     * We build the JSON by hand (rather than pull in a JSON library) to keep it simple
-     * and dependency-free. Strings are escaped for safe embedding.
-     */
-    private void cacheTasksForOffline(List<Task> tasks) {
-        StringBuilder json = new StringBuilder("[");
-        for (int i = 0; i < tasks.size(); i++) {
-            Task t = tasks.get(i);
-            if (i > 0) json.append(",");
-            json.append("{")
-                    .append("\"title\":\"").append(jsEscape(t.getTitle())).append("\",")
-                    .append("\"category\":\"").append(jsEscape(
-                            t.getCategory() == null || t.getCategory().isEmpty() ? "Uncategorized" : t.getCategory())).append("\",")
-                    .append("\"subject\":\"").append(jsEscape(t.getSubject() == null ? "" : t.getSubject())).append("\",")
-                    .append("\"completed\":").append(t.isCompleted()).append(",")
-                    .append("\"dueDate\":\"").append(t.getDueDate() == null ? "" : t.getDueDate().toString()).append("\"")
-                    .append("}");
-        }
-        json.append("]");
-
-        // Push the snapshot to the browser and store it. Wrapped in try/catch on the JS
-        // side because localStorage can throw (private mode, quota) and we don't want a
-        // storage hiccup to break the page.
-        getElement().executeJs(
-                "try { window.localStorage.setItem('taskapp.cachedTasks', $0); } catch (e) { console.warn('Offline cache write failed', e); }",
-                json.toString());
-    }
-
-    /** Minimal JSON-string escaper for the handful of fields we cache. */
-    private static String jsEscape(String s) {
-        if (s == null) return "";
-        return s.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", " ")
-                .replace("\r", " ")
-                .replace("\t", " ");
     }
 
     private void showTaskCompletedBanner() {
