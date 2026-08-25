@@ -1,8 +1,8 @@
 # TaskApp (Multitask v1)
 
-The first generation of [Multitask](https://github.com/jckyii/MultiTask) — a web task manager I designed, built, and deployed as my first full-stack project (April–June 2026). It is still live and still serving its original users.
+The initial version of [Multitask](https://github.com/jckyii/MultiTask)—the web-based task manager which I designed, built, and put into action as my first full-stack project (from April to June 2026)—is still currently active and continues to serve its original users.
 
-> 🔗 **Live app:** https://taskmanager-gcvv.onrender.com · **The successor (v2):** [jckyii/MultiTask](https://github.com/jckyii/MultiTask) — a native, offline-first rebuild of this product.
+> 🔗 **Live app:** https://taskmanager-gcvv.onrender.com · **The successor (v2)** is [jckyii/MultiTask](https://github.com/jckyii/MultiTask) — a completely native and offline-first version of this product.
 
 <p align="center">
   <img src="screenshots/tasks.png" width="88%" alt="TaskApp — status-colored task cards grouped by status, with priority badges and category/subject pills" />
@@ -10,14 +10,14 @@ The first generation of [Multitask](https://github.com/jckyii/MultiTask) — a w
 
 ## What it does
 
-- Tasks carry a title, description, due date and time, a **category**, a **subject**, and an optional **priority tier** (1st / 2nd / 3rd).
-- Every task has a live **status** — Ongoing, Urgent, Overdue, or Completed — computed in the user's own timezone. "Urgent" means due within your threshold, which is a per-user setting (1–720 hours, default 48).
-- Status drives the whole UI: white / orange / red / green card backgrounds, status badges, and colored pills for category and subject.
-- The list can be **grouped five ways** (status, date, subject, category, priority), searched as you type, and filtered by category or subject. Completed tasks stay in a collapsed section at the top.
-- Categories and subjects are **created by the user**, each with a color picker; deleting one removes it from every task, behind a confirmation.
-- A **month calendar** (FullCalendar) shows dated tasks colored by subject; clicking a day lists that day's tasks, and clicking an entry opens the edit dialog in place.
-- **Accounts:** email + password with BCrypt hashing, email **verification links** (24-hour single-use tokens, with resend), re-authentication before sensitive changes, email changes confirmed from the *new* address, and a remember-me cookie. Every query is scoped to the signed-in user.
-- **Settings:** display name, email, password, urgency threshold, and a searchable timezone picker (with a banner that offers to update it when your browser reports a different zone).
+- Tasks include a title, description, due date and time, **category**, **subject**, and an optional **priority tier** (1st / 2nd / 3rd).
+- All tasks have a current **status**—Ongoing, Urgent, Overdue, or Completed—and this status is calculated according to the user's timezone. A task is considered Urgent if it is due within the threshold, which is a setting specific to each user (ranging from 1 to 720 hours, with the default being 48 hours).
+- The entire user interface is based on status: this includes white, orange, red, and green card backgrounds, status badges, and coloured pills indicating the category and subject.
+- The list can be **divided into five categories** (status, date, subject, category, priority), and it can be searched as you type with the ability to filter by category or subject; completed tasks are kept in a collapsed section at the top.
+- **Users set up categories and subjects**, each of which has a colour picker; if one is deleted it is removed from all tasks and a confirmation is required.
+- The **FullCalendar month calendar** displays tasks with dates indicated by colour; when you click on a day, a list of the tasks for that day appears, and if you click on an item, the edit dialog box appears in place.
+- The system provides accounts using an email address and a **password that is hashed with BCrypt**; it includes **email verification links** (which are single-use tokens valid for 24 hours and can be resent); it requires re-authentication before allowing any sensitive changes; when an email address is changed, the change is confirmed from the new email address; and it includes a remember-me cookie. Each query is restricted to the logged-in user.
+- **The settings include** a display name, an email address, a password, an urgency threshold, and a searchable time zone picker (together with a banner that provides the option to update it when your browser detects a different time zone).
 
 ## Stack
 
@@ -29,7 +29,7 @@ Java 24 · Spring Boot 4 · Vaadin Flow 25 (server-rendered UI) · Spring Securi
 
 ## Why it was rebuilt
 
-Using it every day exposed three limits: it only works online, the server-rendered framework restricted the interaction design I wanted, and a task manager really lives on a phone. The rebuild became [Multitask v2](https://github.com/jckyii/MultiTask) — same database, same product DNA (the status colors and pills you see above started here), redesigned from the ground up as a native, offline-first app. A v1 account signs into v2 with the same email and its tasks follow automatically.
+Using it every day revealed three limitations: it only functioned online, the server-rendered framework hindered the kind of interaction design I desired, and a task manager is really meant to be used on a phone. The revamped version was called [Multitask v2](https://github.com/jckyii/MultiTask) — it used the same database and shared the same product DNA (the status colours and pills you see above first appeared here) and was completely redesigned as a native, offline-first application. Accounts from version 1 can log into version 2 with the same email and their tasks are automatically carried over.
 
 ## Running it locally
 
