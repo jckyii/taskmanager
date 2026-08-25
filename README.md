@@ -1,6 +1,6 @@
 # TaskApp (Multitask v1)
 
-The initial version of [Multitask](https://github.com/jckyii/MultiTask)—the web-based task manager which I designed, built, and put into action as my first full-stack project (from April to June 2026)—is still currently active and continues to serve its original users.
+The initial version of [Multitask](https://github.com/jckyii/MultiTask)—the web-based task manager which I designed, built, and put into action as my first full-stack project and my Computer Programming 12 final project (from February to June 2026)—is still currently active and continues to serve its original users.
 
 > 🔗 **Live app:** https://taskmanager-gcvv.onrender.com · **The successor (v2)** is [jckyii/MultiTask](https://github.com/jckyii/MultiTask) — a completely native and offline-first version of this product.
 
@@ -25,7 +25,7 @@ Java 24 · Spring Boot 4 · Vaadin Flow 25 (server-rendered UI) · Spring Securi
 
 ## Numbers
 
-~4,600 lines of Java · 65 commits across 14 pull requests over two months · 3 database tables · 8 routes.
+~4,600 hand-written lines of Java · 65 commits across 14 merged pull requests · 3 database tables · 8 routes · 12 registered users.
 
 ## Why it was rebuilt
 
