@@ -1,85 +1,40 @@
-# My Application README
+# TaskApp (Multitask v1)
 
-- [ ] TODO Replace or update this README with instructions relevant to your application
+The first generation of [Multitask](https://github.com/jckyii/MultiTask) — a web task manager I designed, built, and deployed as my first full-stack project (April–June 2026). It is still live and still serving its original users.
 
-## Project Structure
+> 🔗 **Live app:** https://taskmanager-gcvv.onrender.com · **The successor (v2):** [jckyii/MultiTask](https://github.com/jckyii/MultiTask) — a native, offline-first rebuild of this product.
 
-This project has the following structure:
+<p align="center">
+  <img src="screenshots/tasks.png" width="88%" alt="TaskApp — status-colored task cards grouped by status, with priority badges and category/subject pills" />
+</p>
 
-```
-src
-├── main/java
-│   └── [application package]
-│       ├── base
-│       │   └── ui
-│       │       ├── MainLayout.java
-│       │       └── ViewTitle.java
-│       ├── examplefeature
-│       │   ├── ui
-│       │   │   └── TaskListView.java
-│       │   ├── Task.java
-│       │   ├── TaskRepository.java
-│       │   └── TaskService.java                
-│       └── Application.java     
-├── main/resources
-│   ├── META-INF
-│   │   └── resources
-│   │       ├── icons
-│   │       │   └── clipboard-check.svg
-│   │       ├── styles.css
-│   │       └── view-title.css
-│   └── application.properties 
-└── test/java
-    └── [application package]
-        └── examplefeature
-            ├── ui
-            │   └── TaskListViewTest.java
-            └── TaskServiceTest.java                 
-```
+## What it does
 
-The main entry point into the application is `Application.java`. This class contains the `main()` method that starts up 
-the Spring Boot application.
+- Tasks carry a title, description, due date and time, a **category**, a **subject**, and an optional **priority tier** (1st / 2nd / 3rd).
+- Every task has a live **status** — Ongoing, Urgent, Overdue, or Completed — computed in the user's own timezone. "Urgent" means due within your threshold, which is a per-user setting (1–720 hours, default 48).
+- Status drives the whole UI: white / orange / red / green card backgrounds, status badges, and colored pills for category and subject.
+- The list can be **grouped five ways** (status, date, subject, category, priority), searched as you type, and filtered by category or subject. Completed tasks stay in a collapsed section at the top.
+- Categories and subjects are **created by the user**, each with a color picker; deleting one removes it from every task, behind a confirmation.
+- A **month calendar** (FullCalendar) shows dated tasks colored by subject; clicking a day lists that day's tasks, and clicking an entry opens the edit dialog in place.
+- **Accounts:** email + password with BCrypt hashing, email **verification links** (24-hour single-use tokens, with resend), re-authentication before sensitive changes, email changes confirmed from the *new* address, and a remember-me cookie. Every query is scoped to the signed-in user.
+- **Settings:** display name, email, password, urgency threshold, and a searchable timezone picker (with a banner that offers to update it when your browser reports a different zone).
 
-The project follows a *feature-based package structure*, organizing code by *functional units* rather than traditional 
-architectural layers. It includes two feature packages: `base` and `examplefeature`.
+## Stack
 
-* The `base` package contains classes meant for reuse across different features, either through composition or 
-  inheritance. You can use them as-is, tweak them to your needs, or remove them.
-* The `examplefeature` package is an example feature package that demonstrates the structure. It represents a 
-  *self-contained unit of functionality*, including UI components, business logic, data access, and an integration test.
-  Once you create your own features, *you'll remove this package*.
+Java 24 · Spring Boot 4 · Vaadin Flow 25 (server-rendered UI) · Spring Security · Spring Data JPA / Hibernate · PostgreSQL on Supabase · Spring Mail (verification emails) · Docker → deployed on Render.
 
+## Numbers
 
-## Starting in Development Mode
+~4,600 lines of Java · 65 commits across 14 pull requests over two months · 3 database tables · 8 routes.
 
-To start the application in development mode, import it into your IDE and run the `Application` class. 
-You can also start the application from the command line by running: 
+## Why it was rebuilt
+
+Using it every day exposed three limits: it only works online, the server-rendered framework restricted the interaction design I wanted, and a task manager really lives on a phone. The rebuild became [Multitask v2](https://github.com/jckyii/MultiTask) — same database, same product DNA (the status colors and pills you see above started here), redesigned from the ground up as a native, offline-first app. A v1 account signs into v2 with the same email and its tasks follow automatically.
+
+## Running it locally
 
 ```bash
-./mvnw
+./mvnw    # starts Spring Boot + Vaadin dev mode on :8080
 ```
 
-## Building for Production
-
-To build the application in production mode, run:
-
-```bash
-./mvnw package
-```
-
-To build a Docker image, run:
-
-```bash
-docker build -t my-application:latest .
-```
-
-If you use commercial components, pass the license key as a build secret:
-
-```bash
-docker build --secret id=proKey,src=$HOME/.vaadin/proKey .
-```
-
-## Next Steps
-
-The [Building Apps](https://vaadin.com/docs/v25/building-apps) guides contain hands-on advice for adding features to 
-your application.
+Requires environment variables for the database and mailer: `DB_URL`, `DB_USER`, `DB_PASSWORD` (Postgres — use Supabase's transaction-mode pooler), `MAIL_USERNAME`, `MAIL_PASSWORD` (a Gmail app password), and optionally `APP_BASE_URL` so verification emails link to the right host.
